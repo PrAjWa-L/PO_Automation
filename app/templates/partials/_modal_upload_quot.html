@@ -1,0 +1,99 @@
+{# _modal_upload_quot.html — Upload scanned quotation or invoice
+   Controlled by: quotations.js → Quotations.openUploadModal() #}
+
+<div class="overlay" id="upload-modal">
+  <div class="modal modal-sm" style="width:560px;">
+
+    <div class="modal-hd">
+      <div class="modal-title">Upload Quotation / Invoice</div>
+      <button class="modal-close" onclick="Modal.close('upload-modal')">&times;</button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="fg2" style="margin-bottom:12px;">
+        <div class="fg">
+          <label>Document Type</label>
+          <select id="up-type">
+            <option>Quotation</option>
+            <option>Proforma Invoice</option>
+            <option>Tax Invoice</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Vendor Name *</label>
+          <input id="up-vendor" placeholder="Vendor name">
+        </div>
+        <div class="fg">
+          <label>Reference / Quote No.</label>
+          <input id="up-ref" placeholder="e.g. AS/CH/PHY/25/1">
+        </div>
+        <div class="fg">
+          <label>Document Date</label>
+          <input type="date" id="up-date">
+        </div>
+        <div class="fg">
+          <label>Grand Total (₹)</label>
+          <input type="number" id="up-total" placeholder="0">
+        </div>
+        <div class="fg">
+          <label>GST %</label>
+          <input type="number" id="up-gst" placeholder="18" value="18">
+        </div>
+        <div class="fg">
+          <label>Delivery Timeline</label>
+          <input id="up-delivery" placeholder="e.g. 7 days / 4–6 weeks">
+        </div>
+        <div class="fg">
+          <label>Warranty</label>
+          <input id="up-warranty" placeholder="e.g. 3 years onsite">
+        </div>
+        <div class="fg">
+          <label>Payment Terms</label>
+          <input id="up-payterms" placeholder="e.g. Net 30 / 50% advance">
+        </div>
+        <div class="fg">
+          <label>Vendor GSTIN</label>
+          <input id="up-vgst" placeholder="29XXXXX0000X1ZX"
+                 style="text-transform:uppercase;"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="fg fg-full">
+          <label>Items / Description</label>
+          <textarea id="up-desc"
+                    placeholder="Brief description of items quoted…"></textarea>
+        </div>
+      </div>
+
+      {# File drop zone #}
+      <div class="upzone" id="upzone"
+           onclick="document.getElementById('up-file').click()"
+           ondragover="Quotations.dragOver(event)"
+           ondragleave="Quotations.dragLeave(event)"
+           ondrop="Quotations.drop(event)">
+        <input type="file" id="up-file"
+               accept=".pdf,.jpg,.jpeg,.png,.webp"
+               onchange="Quotations.handleFile(this)">
+        <div class="upzone-icon">📁</div>
+        <p>Click or drag &amp; drop to upload scanned document</p>
+        <small>PDF, JPG, PNG, WEBP — max 10 MB</small>
+      </div>
+
+      <div id="up-preview-wrap" style="display:none;margin-top:10px;text-align:center;">
+        <img id="up-preview"
+             style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border);">
+        <div id="up-fname"
+             style="font-size:11px;color:var(--text3);margin-top:5px;"></div>
+      </div>
+
+    </div>{# /modal-bd #}
+
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('upload-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="Quotations.save()">
+        Save &amp; Add to Compare
+      </button>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — ProcureIQ{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_sub %}Overview of PO activity and pending actions{% endblock %}
+
+{% block content %}
+
+{# ── STAT CARDS ── #}
+<div class="grid4 mb-18" id="dash-stats">
+  <div class="stat">
+    <div class="stat-lbl">Total POs</div>
+    <div class="stat-val" id="ds-total">—</div>
+    <div class="stat-delta stat-nt">all time</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">Pending Approval</div>
+    <div class="stat-val" id="ds-pending">—</div>
+    <div class="stat-delta stat-a">awaiting sign-off</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">Approved</div>
+    <div class="stat-val" id="ds-approved">—</div>
+    <div class="stat-delta stat-up">this cycle</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">YTD Spend</div>
+    <div class="stat-val" id="ds-spend">—</div>
+    <div class="stat-delta stat-nt">approved POs only</div>
+  </div>
+</div>
+
+{# ── TWO-COL CARDS ── #}
+<div class="grid2">
+
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">Recent Purchase Orders</div>
+        <div class="card-sub">Latest 5 across all departments</div>
+      </div>
+      <a href="{{ url_for('frontend.purchase_orders') }}" class="btn btn-sm">View all →</a>
+    </div>
+    <div id="dash-recent-po">
+      {% include "partials/_loading.html" %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">Pending UTR Entry</div>
+        <div class="card-sub">Payments awaiting UTR / reference number</div>
+      </div>
+      <a href="{{ url_for('frontend.payments') }}" class="btn btn-sm">All payments →</a>
+    </div>
+    <div id="dash-pending-utr">
+      {% include "partials/_loading.html" %}
+    </div>
+  </div>
+
+</div>
+
+{# Modals used from this page #}
+{% include "partials/_modal_utr.html" %}
+{% include "partials/_modal_vendor.html" %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

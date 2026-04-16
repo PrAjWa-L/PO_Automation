@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Indent Master — ProcureIQ{% endblock %}
+{% block page_title %}Indent Master{% endblock %}
+{% block page_sub %}Raise and track department purchase requisitions{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="Indents.openNew()">+ New Indent</button>
+{% endblock %}
+
+{% block content %}
+
+{# ── STAT CARDS ── #}
+<div class="indent-stats" id="indent-stats">
+  <div class="istat-card">
+    <div class="istat-val" id="ist-total">—</div>
+    <div class="istat-lbl">Total</div>
+  </div>
+  <div class="istat-card amber">
+    <div class="istat-val" id="ist-pending">—</div>
+    <div class="istat-lbl">Pending</div>
+  </div>
+  <div class="istat-card green">
+    <div class="istat-val" id="ist-approved">—</div>
+    <div class="istat-lbl">Approved</div>
+  </div>
+  <div class="istat-card blue">
+    <div class="istat-val" id="ist-rfq">—</div>
+    <div class="istat-lbl">RFQ Sent</div>
+  </div>
+  <div class="istat-card red">
+    <div class="istat-val" id="ist-rejected">—</div>
+    <div class="istat-lbl">Rejected</div>
+  </div>
+</div>
+
+{# ── FILTER TOOLBAR ── #}
+<div class="toolbar mb-16">
+  <div class="tabs" id="indent-filter-tabs">
+    <button class="tab active" onclick="Indents.filter('', this)">All</button>
+    <button class="tab" onclick="Indents.filter('Pending', this)">Pending</button>
+    <button class="tab" onclick="Indents.filter('Approved', this)">Approved</button>
+    <button class="tab" onclick="Indents.filter('RFQ Sent', this)">RFQ Sent</button>
+    <button class="tab" onclick="Indents.filter('Rejected', this)">Rejected</button>
+  </div>
+  <div class="spacer"></div>
+  {% if current_user and current_user.role == 'coo' %}
+  <select id="dept-filter" onchange="Indents.filterDept(this.value)"
+          style="width:160px;font-size:12px;">
+    <option value="">All Departments</option>
+    <option>IT</option>
+    <option>Maintenance</option>
+    <option>Housekeeping</option>
+    <option>Accounts</option>
+    <option>HR</option>
+    <option>Pharmacy</option>
+    <option>Administration</option>
+  </select>
+  {% endif %}
+  <input id="indent-search" placeholder="Search indent, item…" style="width:180px;"
+         oninput="Indents.search(this.value)">
+  <button class="btn btn-primary" onclick="Indents.openNew()">+ New Indent</button>
+</div>
+
+{# ── TABLE ── #}
+<div class="card">
+  <div id="indent-table-wrap">
+    <div class="loading-state">
+      <div class="spinner"></div>
+    </div>
+  </div>
+</div>
+
+{# ── NEW / EDIT MODAL ── #}
+<div class="overlay" id="indent-modal">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <div>
+        <div class="modal-title" id="indent-modal-title">New Indent</div>
+        <div class="modal-sub" id="indent-modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="Modal.close('indent-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      {# Autofilled row #}
+      <div class="fg2 mb-12">
+        <div class="fg">
+          <label>Indent Number</label>
+          <input id="if-num" readonly style="font-family:'DM Mono',monospace;font-size:12px;">
+        </div>
+        <div class="fg">
+          <label>Indent Date</label>
+          <input id="if-date" readonly>
+        </div>
+      </div>
+
+      {# Main fields #}
+      <div class="fg3 mb-12">
+        <div class="fg fg-span2">
+          <label>Item Name *</label>
+          <input id="if-item" placeholder="e.g. A4 Paper Ream, Surgical Gloves L">
+        </div>
+        <div class="fg">
+          <label>Department *</label>
+          <select id="if-dept">
+            <option value="">— Select —</option>
+            <option>IT</option>
+            <option>Maintenance</option>
+            <option>Housekeeping</option>
+            <option>Accounts</option>
+            <option>HR</option>
+            <option>Pharmacy</option>
+            <option>Administration</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fg3 mb-12">
+        <div class="fg">
+          <label>Quantity *</label>
+          <input id="if-qty" type="number" min="0.001" step="any" placeholder="1">
+        </div>
+        <div class="fg">
+          <label>Unit</label>
+          <select id="if-unit">
+            <option>Nos</option>
+            <option>Kg</option>
+            <option>Ltrs</option>
+            <option>Box</option>
+            <option>Pkt</option>
+            <option>Set</option>
+            <option>Pair</option>
+            <option>Mtr</option>
+            <option>Roll</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Priority</label>
+          <select id="if-priority">
+            <option>Low</option>
+            <option selected>Normal</option>
+            <option>High</option>
+            <option>Urgent</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fg mb-4">
+        <label>Remarks</label>
+        <textarea id="if-remarks" rows="3"
+                  placeholder="Reason for request, specifications, preferred brand…"></textarea>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('indent-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="Indents.save()">Submit Indent</button>
+    </div>
+  </div>
+</div>
+
+{# ── REJECT REASON MODAL (COO only) ── #}
+<div class="overlay" id="reject-modal">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <div class="modal-title">Reject Indent</div>
+      <button class="modal-close" onclick="Modal.close('reject-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label>Reason for rejection (optional)</label>
+        <textarea id="reject-remarks" rows="3" placeholder="Enter reason…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('reject-modal')">Cancel</button>
+      <button class="btn btn-red" onclick="Indents.confirmReject()">Reject</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Indent stat cards ── */
+.indent-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.istat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.istat-card.amber  { border-left: 3px solid var(--amber); }
+.istat-card.green  { border-left: 3px solid var(--green); }
+.istat-card.blue   { border-left: 3px solid var(--blue);  }
+.istat-card.red    { border-left: 3px solid var(--red);   }
+.istat-val {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text);
+  line-height: 1;
+}
+.istat-lbl {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 500;
+}
+
+/* ── Priority badges ── */
+.pri-low    { background: var(--surface2);  color: var(--text2);  }
+.pri-normal { background: var(--blue-bg);   color: var(--blue);   }
+.pri-high   { background: var(--amber-bg);  color: var(--amber);  }
+.pri-urgent { background: var(--red-bg);    color: var(--red);    font-weight:600; }
+
+/* ── Indent table action row ── */
+.indent-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .indent-stats { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/indents.js') }}"></script>
+{% endblock %}

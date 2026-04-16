@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Quotations & RFQ — ProcureIQ{% endblock %}
+{% block page_title %}Quotations &amp; Invoices{% endblock %}
+{% block page_sub %}Scanned quotations and proforma invoices from vendors{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('frontend.ai_compare') }}" class="btn">✦ AI Compare →</a>
+<button class="btn btn-primary" onclick="Quotations.openUploadModal()">↑ Upload Document</button>
+{% endblock %}
+
+{% block content %}
+
+<div class="grid3" id="quot-grid">
+  {% include "partials/_loading.html" %}
+</div>
+
+{% include "partials/_modal_upload_quot.html" %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/quotations.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Approvals — ProcureIQ{% endblock %}
+{% block page_title %}Approvals{% endblock %}
+{% block page_sub %}Purchase orders awaiting COO / Accounts sign-off{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-sm" onclick="Approvals.load()">↺ Refresh</button>
+{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <div class="card-hd">
+    <div>
+      <div class="card-title">Pending Approvals</div>
+      <div class="card-sub">
+        Workflow: Draft → Pending Approval → Approved → Closed
+      </div>
+    </div>
+    <button class="btn btn-sm" onclick="Approvals.load()">↺ Refresh</button>
+  </div>
+  <div id="approvals-wrap">
+    {% include "partials/_loading.html" %}
+  </div>
+</div>
+
+{% include "partials/_modal_po_view.html" %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  window.CURRENT_USER_DISPLAY = "{{ current_user.display_name if current_user else 'COO' }}";
+</script>
+<script src="{{ url_for('static', filename='js/approvals.js') }}"></script>
+{% endblock %}
+

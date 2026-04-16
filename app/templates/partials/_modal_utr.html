@@ -1,0 +1,50 @@
+{# _modal_utr.html — Quick UTR entry (marks payment Paid via PATCH /utr endpoint)
+   Controlled by: payments.js → Payments.openUTR(payId, poId, vendor, amount) #}
+
+<div class="overlay" id="utr-modal">
+  <div class="modal modal-sm" style="width:440px;">
+
+    <div class="modal-hd">
+      <div class="modal-title" id="utr-modal-title">Enter UTR Number</div>
+      <button class="modal-close" onclick="Modal.close('utr-modal')">&times;</button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="utr-summary-strip" id="utr-summary">—</div>
+
+      <div class="fg2" style="margin-top:14px;">
+        <div class="fg fg-full">
+          <label>UTR / Reference Number *</label>
+          <input id="utr-val"
+                 placeholder="e.g. HDFC26033012345678"
+                 style="font-family:'DM Mono',monospace;font-size:14px;text-transform:uppercase;letter-spacing:.5px;"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="fg">
+          <label>Payment Mode</label>
+          <select id="utr-mode">
+            <option>NEFT</option>
+            <option>RTGS</option>
+            <option>IMPS</option>
+            <option>UPI</option>
+            <option>Cheque</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Remarks (optional)</label>
+          <input id="utr-remarks" placeholder="Any notes…">
+        </div>
+      </div>
+
+    </div>{# /modal-bd #}
+
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('utr-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="Payments.submitUTR()">
+        Mark as Paid ✓
+      </button>
+    </div>
+
+  </div>
+</div>

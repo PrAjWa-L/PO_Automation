@@ -1,0 +1,35 @@
+{# _modal_po_view.html — View PO details + approval trail
+   Controlled by: po.js → PO.view(id) #}
+
+<div class="overlay" id="view-po-modal">
+  <div class="modal modal-sm" style="width:580px;">
+
+    <div class="modal-hd">
+      <div>
+        <div class="modal-title" id="vpo-title">Purchase Order</div>
+        <div class="modal-sub" id="vpo-sub"></div>
+      </div>
+      <button class="modal-close" onclick="Modal.close('view-po-modal')">&times;</button>
+    </div>
+
+    <div class="modal-body" id="vpo-body">
+      {% include "partials/_loading.html" %}
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('view-po-modal')">Close</button>
+      <div class="dl-wrap">
+        <button class="btn" onclick="Modal.toggleDropdown(this)">↓ Download ▾</button>
+        <div class="dl-menu">
+          <div class="dl-item" onclick="PO.dlFromView('pdf')">📄 PDF</div>
+          <div class="dl-item" onclick="PO.dlFromView('word')">📝 Word</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="vpo-approve-btn"
+              onclick="PO.approveCurrent()" style="display:none;">
+        Approve (COO)
+      </button>
+    </div>
+
+  </div>
+</div>

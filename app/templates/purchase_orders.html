@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Orders — ProcureIQ{% endblock %}
+{% block page_title %}Purchase Orders{% endblock %}
+{% block page_sub %}Create, track and download POs across all departments{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="PO.openNew()">+ New PO</button>
+{% endblock %}
+
+{% block content %}
+
+<div class="toolbar mb-16">
+  <div class="tabs" id="po-filter-tabs">
+    <button class="tab active" onclick="PO.filter('', this)">All</button>
+    <button class="tab" onclick="PO.filter('Draft', this)">Draft</button>
+    <button class="tab" onclick="PO.filter('Pending Approval', this)">Pending</button>
+    <button class="tab" onclick="PO.filter('Approved', this)">Approved</button>
+    <button class="tab" onclick="PO.filter('Rejected', this)">Rejected</button>
+    <button class="tab" onclick="PO.filter('Closed', this)">Closed</button>
+  </div>
+  <div class="spacer"></div>
+  <input id="po-search" placeholder="Search PO#, vendor…" style="width:175px;"
+         oninput="PO.search(this.value)">
+  <button class="btn btn-primary" onclick="PO.openNew()">+ New PO</button>
+</div>
+
+<div class="card">
+  <div id="po-table-wrap">
+    {% include "partials/_loading.html" %}
+  </div>
+</div>
+
+{% endblock %}

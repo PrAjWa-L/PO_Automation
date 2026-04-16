@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor Master — ProcureIQ{% endblock %}
+{% block page_title %}Vendor Master{% endblock %}
+{% block page_sub %}Manage all vendor details and bank information{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="Vendors.openAddModal()">+ Add Vendor</button>
+{% endblock %}
+
+{% block content %}
+
+<div class="toolbar mb-16">
+  <input id="vendor-search" placeholder="Search vendor name, GSTIN, contact…"
+         style="max-width:280px;" oninput="Vendors.filter()">
+  <div class="spacer"></div>
+  <button class="btn btn-primary" onclick="Vendors.openAddModal()">+ Add Vendor</button>
+</div>
+
+<div class="grid3" id="vendor-grid">
+  {% include "partials/_loading.html" %}
+</div>
+
+{% include "partials/_modal_vendor.html" %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Payments & UTR — ProcureIQ{% endblock %}
+{% block page_title %}Payments &amp; UTR{% endblock %}
+{% block page_sub %}Record and track all payment transactions{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="Payments.openModal()">+ Record Payment</button>
+{% endblock %}
+
+{% block content %}
+
+<div class="toolbar mb-16">
+  <div class="tabs" id="pay-filter-tabs">
+    <button class="tab active" onclick="Payments.filter('', this)">All</button>
+    <button class="tab" onclick="Payments.filter('Pending', this)">Pending UTR</button>
+    <button class="tab" onclick="Payments.filter('Paid', this)">Paid</button>
+    <button class="tab" onclick="Payments.filter('Failed', this)">Failed</button>
+    <button class="tab" onclick="Payments.filter('Cancelled', this)">Cancelled</button>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn btn-primary" onclick="Payments.openModal()">+ Record Payment</button>
+</div>
+
+<div id="payments-list">
+  {% include "partials/_loading.html" %}
+</div>
+
+{% include "partials/_modal_payment.html" %}
+{% include "partials/_modal_utr.html" %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+{% endblock %}

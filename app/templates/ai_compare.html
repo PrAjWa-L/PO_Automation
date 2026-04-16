@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}AI Quote Compare — ProcureIQ{% endblock %}
+{% block page_title %}AI Quotation Comparison{% endblock %}
+{% block page_sub %}Claude-powered analysis: price, GST compliance, risk, vendor reliability{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn" onclick="Quotations.openUploadModal()">↑ Add Quotation</button>
+<button class="btn btn-primary" id="run-ai-btn" onclick="AICompare.run()">
+  ✦ Run Analysis
+</button>
+{% endblock %}
+
+{% block content %}
+
+{# ── QUOTATION CARDS (comparison view) ── #}
+<div class="card" style="overflow:visible; margin-bottom:16px;">
+  <div class="card-hd">
+    <div>
+      <div class="card-title">Loaded Quotations</div>
+      <div class="card-sub">
+        Upload quotations via the Quotations tab, then run AI analysis
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn" onclick="Quotations.openUploadModal()">↑ Add Quotation</button>
+      <button class="btn btn-primary" id="run-ai-btn2" onclick="AICompare.run()">
+        ✦ Run Analysis
+      </button>
+    </div>
+  </div>
+  <div style="padding:14px 16px;">
+    <div class="grid3" id="ai-vc-cards">
+      <div class="empty" style="grid-column:1/-1;">
+        <div class="empty-icon">📎</div>
+        <p>No quotations loaded yet. Upload at least two to compare.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── AI ANALYSIS RESULT ── #}
+<div id="ai-result-section" style="display:none;">
+  <div class="ai-box">
+    <div class="ai-hd">
+      <div class="ai-dot"></div>
+      <div class="ai-title">Claude Analysis</div>
+      <div class="spacer"></div>
+      <button class="btn btn-sm" onclick="AICompare.copy()">Copy</button>
+    </div>
+    <div class="ai-text" id="ai-output"></div>
+  </div>
+</div>
+
+{% include "partials/_modal_upload_quot.html" %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/quotations.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai_compare.js') }}"></script>
+{% endblock %}

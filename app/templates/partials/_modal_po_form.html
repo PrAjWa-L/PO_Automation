@@ -1,0 +1,258 @@
+{# _modal_po_form.html — Create / Edit Purchase Order
+   Controlled by: po.js → PO.openNew() / PO.openEdit(id)
+
+   Team dropdowns are populated at runtime by app.js using
+   window.ACCOUNTS_TEAM and window.APPROVERS arrays.
+   Add / remove names in app.js → ACCOUNTS_TEAM to update. #}
+
+<div class="overlay" id="po-modal">
+  <div class="modal modal-lg">
+
+    <div class="modal-hd">
+      <div class="modal-title" id="po-modal-title">Create Purchase Order</div>
+      <button class="modal-close" onclick="Modal.close('po-modal')">&times;</button>
+    </div>
+
+    <div class="modal-body">
+
+      {# ── PO Preview Header Strip ── #}
+      <div class="po-preview-strip">
+        <div>
+          <div class="po-preview-company">
+            CUTIS Hospital — Academy of Cutaneous Sciences
+          </div>
+          <div class="po-preview-addr">
+            5/1, 4th Main, MRCR Layout, Vijayanagar, Bengaluru-560040
+            &nbsp;·&nbsp; GSTIN: 29AAHFC6018K1Z8
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="po-preview-label" id="po-type-label">PURCHASE ORDER</div>
+          <div class="po-preview-num mono" id="po-prev-num">—</div>
+        </div>
+      </div>
+
+      {# ── PO Header Fields ── #}
+      <div class="sec-lbl">PO Header</div>
+      <div class="fg2">
+
+        <div class="fg fg-full">
+          <label>Order Type *</label>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
+              <input type="radio" name="order-type" id="ot-po" value="Purchase Order"
+                     onchange="PO.onOrderTypeChange()" checked>
+              <span>Purchase Order</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
+              <input type="radio" name="order-type" id="ot-wo" value="Work Order"
+                     onchange="PO.onOrderTypeChange()">
+              <span>Work Order</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="fg" id="tds-field" style="display:none;">
+          <label>TDS % (deducted from Work Order)</label>
+          <input type="number" id="f-tds" value="0" min="0" max="100"
+                 placeholder="e.g. 2" oninput="PO.recalc()">
+        </div>
+
+        <div class="fg">
+          <label>PO Number (Auto)</label>
+          <input id="f-ponum" readonly style="font-family:'DM Mono',monospace;">
+        </div>
+
+        <div class="fg">
+          <label>PO Date *</label>
+          <input type="date" id="f-date">
+        </div>
+
+        <div class="fg">
+          <label>Vendor *</label>
+          <select id="f-vendor" onchange="PO.onVendorChange()">
+            <option value="">— Select Vendor —</option>
+            {# Options injected by vendors.js on page load #}
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Department *</label>
+          <select id="f-dept">
+            <option>IT</option>
+            <option>Maintenance</option>
+            <option>Housekeeping</option>
+            <option>Accounts</option>
+            <option>HR</option>
+            <option>Pharmacy</option>
+            <option>Administration</option>
+          </select>
+        </div>
+
+        {# ── Requested By — accounts team dropdown ── #}
+       <div class="fg">
+          <label>Requested By *</label>
+          <select id="f-reqby" data-team="accounts">
+            <option value="">— Select person —</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Created By *</label>
+          <select id="f-createdby" data-team="accounts">
+            <option value="">— Select person —</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Approved By</label>
+          <select id="f-approvedby" data-team="approvers">
+            <option>Pending</option>
+          </select>
+        </div>
+        
+        <div class="fg">
+          <label>Expected Delivery Date</label>
+          <input type="date" id="f-delivery">
+        </div>
+
+        <div class="fg">
+          <label>Payment Terms</label>
+          <select id="f-payterms">
+            <option>Net 30</option>
+            <option>Net 45</option>
+            <option>Net 60</option>
+            <option>100% Advance</option>
+            <option>50% Advance, 50% on Delivery</option>
+            <option>Against Delivery</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Status</label>
+          <select id="f-status">
+            <option>Draft</option>
+            <option>Pending Approval</option>
+            <option>Approved</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Vendor GSTIN (auto-filled)</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input id="f-vgst" readonly placeholder="Auto from Vendor Master" style="flex:1;">
+            <span id="gst-state-badge" style="font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:5px;white-space:nowrap;display:none;"></span>
+          </div>
+        </div>
+
+        <div class="fg">
+          <label>Bank Details (auto-filled)</label>
+          <input id="f-vbank" readonly placeholder="Auto from Vendor Master">
+        </div>
+
+        <div class="fg fg-full">
+          <label>Vendor Address (auto-filled)</label>
+          <input id="f-vaddr" readonly placeholder="Auto from Vendor Master">
+        </div>
+
+      </div>{# /fg2 #}
+
+      {# ── Line Items ── #}
+      <div class="sec-lbl">Line Items</div>
+      <div class="li-wrap" id="li-wrap">
+        <table class="li-table" id="li-tbl">
+          <thead>
+            <tr>
+              <th style="min-width:160px;">Item Name</th>
+              <th style="min-width:160px;">Description</th>
+              <th style="min-width:90px;">HSN Code</th>
+              <th style="min-width:110px;">Dept</th>
+              <th style="min-width:65px;">Qty</th>
+              <th style="min-width:100px;">MRP (₹)</th>
+              <th style="min-width:105px;">Unit Price *</th>
+              <th style="min-width:65px;">Disc%</th>
+              <th style="min-width:65px;">GST%</th>
+              <th style="min-width:90px;">CGST</th>
+              <th style="min-width:90px;">SGST</th>
+              <th style="min-width:90px;">IGST</th>
+              <th style="min-width:105px;">Total</th>
+              <th style="min-width:32px;"></th>
+            </tr>
+          </thead>
+          <tbody id="li-body">
+            {# Rows injected by po.js → PO.renderLI() #}
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-sm" style="margin-top:8px;"
+              onclick="PO.addLI()">+ Add Line Item</button>
+
+      {# ── Totals ── #}
+      <div class="po-summary-strip" style="margin-top:14px;">
+        <div class="totals-box">
+          <div class="tot-row">
+            <span class="tot-k">Subtotal</span>
+            <span id="t-sub" class="amt">₹0</span>
+          </div>
+          <div class="tot-row">
+            <span class="tot-k">Discount</span>
+            <span id="t-disc" class="amt">₹0</span>
+          </div>
+          <div class="tot-row">
+            <span class="tot-k" id="t-gst-label">GST (CGST + SGST)</span>
+            <span id="t-gst" class="amt">₹0</span>
+          </div>
+          <div class="tot-row" id="tds-row" style="display:none;color:var(--red,#c0392b);">
+            <span class="tot-k">TDS Deduction</span>
+            <span id="t-tds" class="amt">- ₹0</span>
+          </div>
+          <div class="tot-row">
+            <span class="tot-k">Advance %</span>
+            <span>
+              <input type="number" id="f-advpct" value="0" min="0" max="100"
+                     style="width:50px;display:inline;" oninput="PO.recalc()">%
+            </span>
+          </div>
+          <div class="tot-row">
+            <span class="tot-k">Advance Amount</span>
+            <span id="t-adv" class="amt">₹0</span>
+          </div>
+          <div class="tot-row tot-grand">
+            <span>Grand Total</span>
+            <span id="t-grand" class="amt">₹0</span>
+          </div>
+        </div>
+      </div>
+
+      {# ── Notes ── #}
+      <div class="fg" style="margin-top:12px;">
+        <label>Notes / Terms &amp; Conditions</label>
+        <textarea id="f-notes"
+                  placeholder="Delivery instructions, penalty clause, special conditions…">
+        </textarea>
+      </div>
+
+    </div>{# /modal-bd #}
+
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('po-modal')">Cancel</button>
+      <button class="btn" onclick="PO.save('Draft')">Save Draft</button>
+      <div class="dl-wrap">
+        <button class="btn btn-green" onclick="Modal.toggleDropdown(this)">
+          ↓ Generate &amp; Download ▾
+        </button>
+        <div class="dl-menu">
+          <div class="dl-item" onclick="PO.generateDownload('pdf')">
+            📄 Download PDF
+          </div>
+          <div class="dl-item" onclick="PO.generateDownload('word')">
+            📝 Download Word (.docx)
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary"
+              onclick="PO.save('Pending Approval')">
+        Submit for Approval →
+      </button>
+    </div>
+
+  </div>
+</div>

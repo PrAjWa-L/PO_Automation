@@ -1,0 +1,86 @@
+{# _modal_payment.html — Record a new payment against a PO
+   Controlled by: payments.js → Payments.openModal(poId?, vendor?, total?, due?) #}
+
+<div class="overlay" id="pay-modal">
+  <div class="modal modal-sm" style="width:560px;">
+
+    <div class="modal-hd">
+      <div class="modal-title" id="pay-modal-title">Record Payment</div>
+      <button class="modal-close" onclick="Modal.close('pay-modal')">&times;</button>
+    </div>
+
+    <div class="modal-body">
+
+      {# Context strip #}
+      <div class="pay-ctx-strip" id="pay-ctx-strip">
+        <div>
+          <div class="pay-ctx-po" id="pay-po-lbl">—</div>
+          <div class="pay-ctx-vendor" id="pay-vendor-lbl">—</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="pay-ctx-lbl">PO Grand Total</div>
+          <div class="amt pay-ctx-total" id="pay-total-lbl">—</div>
+        </div>
+      </div>
+
+      <div class="sec-lbl">Payment Details</div>
+      <div class="fg2">
+        <div class="fg">
+          <label>PO Number *</label>
+          <input id="pay-po-id" placeholder="PO-2026-001"
+                 style="font-family:'DM Mono',monospace;">
+        </div>
+        <div class="fg">
+          <label>Payment Date *</label>
+          <input type="date" id="pay-date">
+        </div>
+        <div class="fg">
+          <label>Amount (₹) *</label>
+          <input type="number" id="pay-amount" placeholder="0"
+                 oninput="Payments.updateBalance()">
+        </div>
+        <div class="fg">
+          <label>Payment Mode *</label>
+          <select id="pay-mode">
+            <option>NEFT</option>
+            <option>RTGS</option>
+            <option>IMPS</option>
+            <option>UPI</option>
+            <option>Cheque</option>
+            <option>Cash</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>UTR / Reference Number</label>
+          <input id="pay-utr" placeholder="UTR / Cheque / Ref No."
+                 style="font-family:'DM Mono',monospace;text-transform:uppercase;"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="fg">
+          <label>Payment Type</label>
+          <select id="pay-type">
+            <option value="Full">Full Payment</option>
+            <option value="Advance">Advance</option>
+            <option value="Partial">Partial / Instalment</option>
+            <option value="Final">Final Payment</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Balance Remaining (₹)</label>
+          <input id="pay-balance" readonly placeholder="Auto-calculated">
+        </div>
+        <div class="fg fg-full">
+          <label>Remarks</label>
+          <input id="pay-remarks" placeholder="Optional notes…">
+        </div>
+      </div>
+
+    </div>{# /modal-bd #}
+
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('pay-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="Payments.save()">Save Payment</button>
+    </div>
+
+  </div>
+</div>

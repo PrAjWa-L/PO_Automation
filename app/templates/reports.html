@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Reports — ProcureIQ{% endblock %}
+{% block page_title %}Reports &amp; Analytics{% endblock %}
+{% block page_sub %}Spend summary, payment status and PO pipeline{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-sm" onclick="Reports.load()">↺ Refresh</button>
+{% endblock %}
+
+{% block content %}
+
+{# ── STAT CARDS ── #}
+<div class="grid4 mb-18">
+  <div class="stat">
+    <div class="stat-lbl">YTD Spend</div>
+    <div class="stat-val" id="rpt-spend">—</div>
+    <div class="stat-delta stat-nt">approved POs only</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">Total POs</div>
+    <div class="stat-val" id="rpt-total">—</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">Draft</div>
+    <div class="stat-val" id="rpt-draft">—</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">Pending Approval</div>
+    <div class="stat-val" id="rpt-pend">—</div>
+  </div>
+</div>
+
+<div class="grid2">
+
+  {# Payment summary by status #}
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title">Payment Summary by Status</div>
+    </div>
+    <div style="padding:18px;" id="rpt-pay-summary">
+      {% include "partials/_loading.html" %}
+    </div>
+  </div>
+
+  {# PO status breakdown #}
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title">PO Status Breakdown</div>
+    </div>
+    <div style="padding:18px;" id="rpt-po-breakdown">
+      {% include "partials/_loading.html" %}
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% endblock %}
+

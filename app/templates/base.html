@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ProcureIQ — CUTIS Hospital{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  {# ── SIDEBAR ── #}
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sb-logo">
+      <div class="sb-mark">
+        <div class="sb-icon">
+          <svg viewBox="0 0 16 16" fill="white" width="14" height="14" aria-hidden="true">
+            <rect x="2" y="2" width="5" height="5" rx="1"/>
+            <rect x="9" y="2" width="5" height="5" rx="1"/>
+            <rect x="2" y="9" width="5" height="5" rx="1"/>
+            <rect x="9" y="9" width="5" height="5" rx="1"/>
+          </svg>
+        </div>
+        <div>
+          <div class="sb-name">ProcureIQ</div>
+          <div class="sb-sub">CUTIS Hospital</div>
+        </div>
+      </div>
+    </div>
+
+    <nav aria-label="Main navigation">
+      <div class="nav-section">Main</div>
+      <a class="nav-item" href="{{ url_for('frontend.dashboard') }}" data-page="dashboard">
+        <span class="nav-icon" aria-hidden="true">⊞</span>Dashboard
+      </a>
+
+      <div class="nav-section">Procurement</div>
+      <a class="nav-item" href="{{ url_for('frontend.vendors') }}" data-page="vendors">
+        <span class="nav-icon" aria-hidden="true">🏢</span>Vendor Master
+      </a>
+      <a class="nav-item" href="{{ url_for('frontend.purchase_orders') }}" data-page="po">
+        <span class="nav-icon" aria-hidden="true">◧</span>Purchase Orders
+        <span class="nav-badge amber" id="nb-po"></span>
+      </a>
+      {% if current_user and current_user.role == 'coo' %}
+      <a class="nav-item" href="{{ url_for('frontend.approvals') }}" data-page="approvals">
+        <span class="nav-icon" aria-hidden="true">✓</span>Approvals
+        <span class="nav-badge" id="nb-appr"></span>
+      </a>
+      {% endif %}
+      <a class="nav-item" href="{{ url_for('frontend.indents') }}" data-page="indents">
+        <span class="nav-icon" aria-hidden="true">📝</span>Indent Master
+        <span class="nav-badge amber" id="nb-indent"></span>
+      </a>
+      <a class="nav-item" href="{{ url_for('frontend.quotations') }}" data-page="quotations">
+        <span class="nav-icon" aria-hidden="true">📎</span>Quotations &amp; RFQ
+      </a>
+      {% if current_user and current_user.role == 'coo' %}
+      <a class="nav-item" href="{{ url_for('frontend.ai_compare') }}" data-page="ai">
+        <span class="nav-icon" aria-hidden="true">✦</span>AI Compare
+        <span class="nav-badge green">AI</span>
+      </a>
+      {% endif %}
+
+      <div class="nav-section">Finance</div>
+      <a class="nav-item" href="{{ url_for('frontend.payments') }}" data-page="payments">
+        <span class="nav-icon" aria-hidden="true">💳</span>Payments &amp; UTR
+        <span class="nav-badge amber" id="nb-pay"></span>
+      </a>
+      <a class="nav-item" href="{{ url_for('frontend.invoices') }}" data-page="invoices">
+        <span class="nav-icon" aria-hidden="true">≡</span>Invoice Matching
+      </a>
+      <a class="nav-item" href="{{ url_for('frontend.reports') }}" data-page="reports">
+        <span class="nav-icon" aria-hidden="true">↗</span>Reports
+      </a>
+    </nav>
+
+    <div class="sb-user">
+      <div class="avatar" aria-hidden="true">
+        {{ (current_user.display_name or current_user.username or 'U')[:2].upper() if current_user else 'U' }}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="user-name">
+          {{ current_user.display_name if current_user else 'Unknown' }}
+        </div>
+        <div class="user-role">
+          {{ current_user.role if current_user else '' }}
+        </div>
+      </div>
+      <a href="/logout" title="Sign out"
+         style="color:var(--text3);font-size:14px;text-decoration:none;flex-shrink:0;"
+         onclick="return confirm('Sign out?')" aria-label="Sign out">⎋</a>
+    </div>
+
+  </aside>{# /sidebar #}
+
+  {# ── MAIN WRAPPER ── #}
+  <div class="main-wrap">
+
+    {# API config banner — hidden by default, shown via JS if no valid base URL #}
+    <div class="cfg-banner" id="cfg-banner">
+      <span aria-hidden="true">⚙</span>
+      <span style="white-space:nowrap;">Backend URL:</span>
+      <input id="api-base-input" value="" placeholder="http://your-server:8001"
+             onchange="setApiBase(this.value)"
+             title="Flask backend IP/hostname">
+      <button class="api-pill" onclick="checkHealth(true)" id="api-pill"
+              title="Test connection" aria-label="Test API connection">
+        <div class="api-dot" id="api-dot"></div>
+        <span id="api-status">—</span>
+      </button>
+      <button class="btn btn-sm" style="margin-left:auto;"
+              onclick="App.hideCfgBanner()">Hide</button>
+    </div>
+
+    {# ── TOPBAR ── #}
+    <header class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="page-title">{% block page_title %}Dashboard{% endblock %}</div>
+          <div class="page-sub">{% block page_sub %}{% endblock %}</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        {% block topbar_actions %}
+        {% if current_user and current_user.role == 'accounts' %}
+        <button class="btn" onclick="Vendors.openAddModal()">+ Add Vendor</button>
+        <button class="btn btn-primary" onclick="PO.openNew()">+ New PO</button>
+        {% endif %}
+        {% endblock %}
+      </div>
+    </header>
+
+    {# ── PAGE CONTENT ── #}
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>{# /main-wrap #}
+
+  {# ── GLOBAL TOAST ── #}
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  {# Global PO modals #}
+  {% include "partials/_modal_po_form.html" %}
+  {% include "partials/_modal_po_view.html" %}
+
+  {# ── SCRIPTS ── #}
+  <script>
+    window.PROCUREIQ = {
+      apiBase:     " ",
+      currentPage: "{{ current_page | default('') }}",
+      userRole:    "{{ current_user.role if current_user else '' }}",
+      userName:    "{{ current_user.display_name if current_user else '' }}"
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="{{ url_for('static', filename='js/pdf_generator.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/docx_generator.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/po.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/indents.js') }}"></script>
+  {% block extra_scripts %}{% endblock %}
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</body>
+</html>

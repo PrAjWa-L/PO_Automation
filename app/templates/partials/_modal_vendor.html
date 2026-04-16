@@ -1,0 +1,84 @@
+{# _modal_vendor.html — Add / Edit Vendor
+   Controlled by: vendors.js → Vendors.openAddModal() / Vendors.editVendor(id) #}
+
+<div class="overlay" id="vendor-modal">
+  <div class="modal modal-sm">
+
+    <div class="modal-hd">
+      <div class="modal-title" id="vendor-modal-title">Add Vendor</div>
+      <button class="modal-close" onclick="Modal.close('vendor-modal')">&times;</button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="sec-lbl">Vendor Identity</div>
+      <div class="fg2">
+        <div class="fg">
+          <label>Vendor ID (auto)</label>
+          <input id="v-id" readonly>
+        </div>
+        <div class="fg">
+          <label>Vendor Name *</label>
+          <input id="v-name" placeholder="Legal company name">
+        </div>
+        <div class="fg">
+          <label>Contact Person</label>
+          <input id="v-contact" placeholder="Name">
+        </div>
+        <div class="fg">
+          <label>Mobile</label>
+          <input id="v-mobile" placeholder="+91 XXXXX XXXXX">
+        </div>
+        <div class="fg">
+          <label>Email</label>
+          <input id="v-email" type="email" placeholder="vendor@company.com">
+        </div>
+        <div class="fg">
+          <label>GST Number</label>
+          <input id="v-gst" placeholder="29XXXXX0000X1ZX"
+                 style="text-transform:uppercase;"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="fg">
+          <label>PAN Number</label>
+          <input id="v-pan" placeholder="XXXXX0000X"
+                 style="text-transform:uppercase;"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="fg fg-full">
+          <label>Address</label>
+          <input id="v-addr" placeholder="Full address with PIN code">
+        </div>
+      </div>
+
+      <div class="sec-lbl">Bank Details</div>
+      <div class="fg2">
+        <div class="fg">
+          <label>Bank Name</label>
+          <input id="v-bank" placeholder="e.g. HDFC Bank Ltd.">
+        </div>
+        <div class="fg">
+          <label>Account Number</label>
+          <input id="v-acc" placeholder="Account number">
+        </div>
+        <div class="fg">
+          <label>IFSC Code</label>
+          <input id="v-ifsc" placeholder="HDFC0000312"
+                 style="text-transform:uppercase;"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="fg">
+          <label>Branch</label>
+          <input id="v-branch" placeholder="Branch name">
+        </div>
+      </div>
+
+    </div>{# /modal-bd #}
+
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('vendor-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="Vendors.save()">Save Vendor</button>
+    </div>
+
+  </div>
+</div>

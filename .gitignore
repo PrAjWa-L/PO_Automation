@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env.example
+Deployment.md
+.flaskenv
+uploads/
+migrations/
+seed_data.py
+seed_users.py
