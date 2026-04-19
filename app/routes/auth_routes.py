@@ -13,7 +13,7 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.get("/login")
 def login():
     if session.get("user"):
-        return redirect(url_for("frontend.dashboard"))
+        return _role_redirect(session["user"])
     return render_template("login.html", next=request.args.get("next", ""), error=None)
 
 
@@ -21,7 +21,7 @@ def login():
 def login_post():
     username = request.form.get("username", "").strip().lower()
     password = request.form.get("password", "")
-    next_url = request.form.get("next", "") or url_for("frontend.dashboard")
+    next_url = request.form.get("next", "").strip()
 
     user = User.query.filter_by(username=username).first()
     if not user or not user.check_password(password):
@@ -30,7 +30,12 @@ def login_post():
 
     session.permanent = True
     session["user"] = user.to_session()
-    return redirect(next_url)
+
+    # If a specific next page was requested, honour it (unless HOD)
+    if next_url and user.role != "hod":
+        return redirect(next_url)
+
+    return _role_redirect(session["user"])
 
 
 @auth_bp.get("/logout")
@@ -42,3 +47,11 @@ def logout():
 @auth_bp.get("/denied")
 def denied():
     return render_template("denied.html"), 403
+
+
+def _role_redirect(user_dict):
+    """Send each role to their home page after login."""
+    role = user_dict.get("role", "")
+    if role == "hod":
+        return redirect(url_for("frontend.indents"))
+    return redirect(url_for("frontend.dashboard"))

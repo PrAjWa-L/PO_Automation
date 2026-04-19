@@ -14,13 +14,16 @@ const API = (() => {
   /* Base URL — set from window.PROCUREIQ.apiBase or localStorage */
   let _base = '';
 
- function _getBase() {
-  if (_base) return _base;
-  _base = (
-    (window.PROCUREIQ && window.PROCUREIQ.apiBase) || ''
-  ).replace(/\/+$/, '');
-  return _base;
-}
+  function _getBase() {
+    if (_base) return _base;
+    _base = (
+      (window.PROCUREIQ && window.PROCUREIQ.apiBase) ||
+      localStorage.getItem('procureiq_api') ||
+      'http://localhost:8001'
+    ).replace(/\/+$/, '');
+    return '';
+  }
+
   function setBase(url) {
     _base = url.replace(/\/+$/, '');
     localStorage.setItem('procureiq_api', _base);
@@ -115,6 +118,8 @@ const API = (() => {
     create:     (body)        => post('/api/payments', body),
     update:     (id, body)    => put(`/api/payments/${id}`, body),
     recordUTR:  (id, body)    => patch(`/api/payments/${id}/utr`, body),
+    approve:    (id)          => patch(`/api/payments/${id}/approve`, {}),
+    reject:     (id, body)    => patch(`/api/payments/${id}/reject-payment`, body),
     remove:     (id)          => del(`/api/payments/${id}`),
   };
 

@@ -2,11 +2,15 @@
 app/routes/frontend.py
 ──────────────────────
 Serves the Jinja2 HTML templates.
-All pages require login. Approvals and AI Compare require COO role.
+
+Roles:
+  coo      — full access to everything
+  accounts — everything except approvals and ai-compare
+  hod      — indent module only, redirected to /indents on login
 """
 
 import os
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, redirect, url_for
 from app.auth import login_required, frontend_role_required, current_user
 
 frontend_bp = Blueprint(
@@ -27,20 +31,29 @@ def _ctx(**kwargs):
 
 
 @frontend_bp.get("/")
-@frontend_bp.get("/dashboard")
 @login_required
+def index():
+    # HOD goes straight to indents; everyone else to dashboard
+    user = current_user()
+    if user and user.get("role") == "hod":
+        return redirect(url_for("frontend.indents"))
+    return redirect(url_for("frontend.dashboard"))
+
+
+@frontend_bp.get("/dashboard")
+@frontend_role_required("coo", "accounts")
 def dashboard():
     return render_template("dashboard.html", **_ctx(current_page="dashboard"))
 
 
 @frontend_bp.get("/vendors")
-@login_required
+@frontend_role_required("coo", "accounts")
 def vendors():
     return render_template("vendors.html", **_ctx(current_page="vendors"))
 
 
 @frontend_bp.get("/purchase-orders")
-@login_required
+@frontend_role_required("coo", "accounts")
 def purchase_orders():
     return render_template("purchase_orders.html", **_ctx(current_page="po"))
 
@@ -52,7 +65,7 @@ def approvals():
 
 
 @frontend_bp.get("/quotations")
-@login_required
+@frontend_role_required("coo", "accounts")
 def quotations():
     return render_template("quotations.html", **_ctx(current_page="quotations"))
 
@@ -64,23 +77,24 @@ def ai_compare():
 
 
 @frontend_bp.get("/payments")
-@login_required
+@frontend_role_required("coo", "accounts")
 def payments():
     return render_template("payments.html", **_ctx(current_page="payments"))
 
 
 @frontend_bp.get("/invoices")
-@login_required
+@frontend_role_required("coo", "accounts")
 def invoices():
     return render_template("invoices.html", **_ctx(current_page="invoices"))
 
 
 @frontend_bp.get("/reports")
-@login_required
+@frontend_role_required("coo", "accounts")
 def reports():
     return render_template("reports.html", **_ctx(current_page="reports"))
 
+
 @frontend_bp.get("/indents")
-@login_required
+@frontend_role_required("coo", "accounts", "hod")
 def indents():
     return render_template("indents.html", **_ctx(current_page="indents"))

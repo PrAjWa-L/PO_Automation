@@ -123,6 +123,7 @@ const PO = (() => {
       <td>
         <div style="display:flex;gap:4px;">
           <button class="btn btn-sm" onclick="PO.view('${Utils.esc(p.id)}')">View</button>
+          ${p.status === 'Draft' ? `<button class="btn btn-sm" onclick="PO.openEdit('${Utils.esc(p.id)}')">Edit</button>` : ''}
           <div class="dl-wrap">
             <button class="btn btn-sm" onclick="Modal.toggleDropdown(this)">↓</button>
             <div class="dl-menu">
@@ -230,6 +231,84 @@ const PO = (() => {
     // Restore Submit button in case it was hidden by openFromQuotation
     const submitBtn = document.querySelector('#po-modal .modal-footer .btn-primary');
     if (submitBtn) submitBtn.style.display = '';
+    Modal.open('po-modal');
+  }
+
+  /* Open the PO form pre-filled with an existing Draft PO for editing */
+  async function openEdit(poId) {
+    // Fetch the full PO (with line items)
+    const r = await API.POs.get(poId);
+    if (!r.success) { Utils.toastError('Could not load PO for editing.'); return; }
+    const po = r.data;
+
+    if (po.status !== 'Draft') {
+      Utils.toastError('Only Draft POs can be edited.');
+      return;
+    }
+
+    _editId = po.id;
+
+    // Ensure vendors and dropdowns are ready
+    if (typeof Vendors !== 'undefined') {
+      if (!Vendors.getAll().length) await Vendors.load();
+      _fillVendorDropdown();
+    }
+    if (typeof App !== 'undefined') App.populateTeamDropdowns();
+
+    // Fill header fields
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
+    set('f-poid',       po.id);
+    set('f-dept',       po.department);
+    set('f-date',       po.po_date);
+    set('f-delivery',   po.delivery_date || '');
+    set('f-reqby',      po.requested_by  || '');
+    set('f-createdby',  po.created_by    || '');
+    set('f-approvedby', po.approved_by   || '');
+    set('f-notes',      po.notes         || '');
+    set('f-status',     po.status);
+    set('f-advpct',     po.advance_pct   || 0);
+    set('f-tds',        po.tds_pct       || 0);
+
+    // Payment terms
+    const payterms = document.getElementById('f-payterms');
+    if (payterms && po.payment_terms) payterms.value = po.payment_terms;
+
+    // Order type radio
+    const orderTypeVal = po.order_type || 'Purchase Order';
+    const otRadio = document.querySelector(`input[name="order-type"][value="${orderTypeVal}"]`);
+    if (otRadio) { otRadio.checked = true; PO.onOrderTypeChange(); }
+
+    // Vendor
+    const vendorSel = document.getElementById('f-vendor');
+    if (vendorSel && po.vendor_id) {
+      vendorSel.value = po.vendor_id;
+      PO.onVendorChange();
+    }
+
+    // Line items
+    _liItems = (po.line_items || []).map(li => ({
+      name:  li.item_name   || '',
+      desc:  li.description || '',
+      hsn:   li.hsn_code    || '',
+      dept:  li.department  || '',
+      qty:   li.qty         ?? 1,
+      mrp:   li.mrp         ?? 0,
+      price: li.unit_price  ?? 0,
+      disc:  li.discount_pct ?? 0,
+      gst:   li.gst_pct     ?? 18,
+    }));
+    if (!_liItems.length) _liItems = [_blankLI()];
+    _renderLI();
+    recalc();
+
+    // Update modal title and show submit button
+    const title = document.getElementById('po-modal-title');
+    if (title) title.textContent = `Edit PO — ${po.id}`;
+    const submitBtn = document.querySelector('#po-modal .modal-footer .btn-primary');
+    if (submitBtn) submitBtn.style.display = '';
+
+    // Close the view modal if it's open, then open the edit modal
+    Modal.close('view-po-modal');
     Modal.open('po-modal');
   }
 
@@ -711,10 +790,14 @@ const PO = (() => {
     const rw = document.getElementById('reject-reason-wrap');
     if (rw) rw.remove();
 
-    /* Accounts / Admin — submit draft or resubmit rejected */
+    /* Accounts / Admin — edit draft, submit draft, or resubmit rejected */
     if (role === 'accounts' || role === 'admin') {
       if (status === 'Draft') {
         footer.insertAdjacentHTML('beforeend', `
+          <button class="btn po-action-btn"
+                  onclick="PO.openEdit('${po.id}')">
+            ✏ Edit
+          </button>
           <button class="btn btn-primary po-action-btn"
                   onclick="PO.changeStatus('${po.id}', 'Pending Approval')">
             Submit for Approval
@@ -905,7 +988,7 @@ const PO = (() => {
 
   return {
     load, filter, search,
-    openNew, openFromQuotation, onVendorChange, onOrderTypeChange,
+    openNew, openEdit, openFromQuotation, onVendorChange, onOrderTypeChange,
     addLI, removeLI, _updateLI, recalc,
     save,
     view, approveCurrent, rejectCurrent, _confirmReject, changeStatus,

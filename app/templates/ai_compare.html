@@ -2,11 +2,11 @@
 
 {% block title %}AI Quote Compare — ProcureIQ{% endblock %}
 {% block page_title %}AI Quotation Comparison{% endblock %}
-{% block page_sub %}Claude-powered analysis: price, GST compliance, risk, vendor reliability{% endblock %}
+{% block page_sub %}AI-powered analysis: price, GST compliance, risk, vendor reliability{% endblock %}
 
 {% block topbar_actions %}
 <button class="btn" onclick="Quotations.openUploadModal()">↑ Add Quotation</button>
-<button class="btn btn-primary" id="run-ai-btn" onclick="AICompare.run()">
+<button class="btn btn-primary" id="run-ai-btn" onclick="AICompare.run()" disabled title="Select at least 2 quotations to compare">
   ✦ Run Analysis
 </button>
 {% endblock %}
@@ -17,14 +17,15 @@
 <div class="card" style="overflow:visible; margin-bottom:16px;">
   <div class="card-hd">
     <div>
-      <div class="card-title">Loaded Quotations</div>
-      <div class="card-sub">
-        Upload quotations via the Quotations tab, then run AI analysis
-      </div>
+      <div class="card-title">Select Quotations to Compare</div>
+      <div class="card-sub" id="ai-sel-counter" style="color:var(--amber);">No quotations selected</div>
     </div>
-    <div style="display:flex;gap:6px;">
-      <button class="btn" onclick="Quotations.openUploadModal()">↑ Add Quotation</button>
-      <button class="btn btn-primary" id="run-ai-btn2" onclick="AICompare.run()">
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="btn btn-sm" onclick="AICompare.selectAll()">Select All</button>
+      <button class="btn btn-sm" id="ai-sel-clear" onclick="AICompare.clearSelection()"
+              style="display:none;">Clear</button>
+      <button class="btn btn-primary" id="run-ai-btn2" onclick="AICompare.run()" disabled
+              title="Select at least 2 quotations to compare">
         ✦ Run Analysis
       </button>
     </div>
@@ -44,7 +45,7 @@
   <div class="ai-box">
     <div class="ai-hd">
       <div class="ai-dot"></div>
-      <div class="ai-title">Claude Analysis</div>
+      <div class="ai-title">AI Analysis</div>
       <div class="spacer"></div>
       <button class="btn btn-sm" onclick="AICompare.copy()">Copy</button>
     </div>
@@ -54,6 +55,27 @@
 
 {% include "partials/_modal_upload_quot.html" %}
 
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Selected card highlight */
+.ai-quot-card {
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  user-select: none;
+}
+.ai-quot-card:hover {
+  border-color: var(--accent-b);
+}
+.ai-card-selected {
+  border-color: var(--accent) !important;
+  border-width: 2px !important;
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.ai-card-selected .quot-vendor {
+  color: var(--accent);
+}
+</style>
 {% endblock %}
 
 {% block extra_scripts %}

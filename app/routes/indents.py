@@ -31,24 +31,21 @@ VALID_UNITS      = ["Nos", "Kg", "Ltrs", "Box", "Pkt", "Set", "Pair", "Mtr", "Ro
 @indents_bp.get("")
 @login_required
 def list_indents():
-    user = current_user()
-    q    = Indent.query
+    user   = current_user()
+    q      = Indent.query
 
-    if user.get("role") != "coo":
-        dept = request.args.get("dept") or user.get("department") or ""
+    # Dept admins only see their own department's indents; COO sees all
+    if user.get("role") not in ("coo",):
+        dept = request.args.get("dept") or user.get("department", "")
         if dept:
             q = q.filter(Indent.department == dept)
-        # if no dept set on user, show ALL indents (or none — your choice)
 
     status = request.args.get("status")
+    dept   = request.args.get("dept")
     if status:
         q = q.filter(Indent.status == status)
-
-    # only apply dept filter for COO when explicitly passed
-    if user.get("role") == "coo":
-        dept = request.args.get("dept")
-        if dept:
-            q = q.filter(Indent.department == dept)
+    if dept and user.get("role") == "coo":
+        q = q.filter(Indent.department == dept)
 
     indents = q.order_by(Indent.created_at.desc()).all()
     return ok([i.to_dict() for i in indents])
@@ -61,7 +58,7 @@ def stats():
     from sqlalchemy import func
     q = Indent.query
     user = current_user()
-    if user.get("role") != "coo":
+    if user.get("role") not in ("coo",):
         dept = user.get("department", "")
         if dept:
             q = q.filter(Indent.department == dept)
@@ -75,11 +72,6 @@ def stats():
         "total": total, "pending": pending,
         "approved": approved, "rejected": rejected, "rfq_sent": rfq_sent,
     })
-
-@indents_bp.get("/next-id")
-@login_required
-def next_id():
-    return ok({"next_id": _next_indent_id()})
 
 
 # ─── GET ONE ─────────────────────────────────────────────────
@@ -290,3 +282,7 @@ def _next_indent_id():
         num = 1
     return f"{prefix}{num:03d}"
 
+@indents_bp.get("/next-id")
+@login_required
+def next_id():
+    return ok({"next_id": _next_indent_id()})

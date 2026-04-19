@@ -14,6 +14,8 @@ from flask import Blueprint, request
 from app import db
 from app.models import Payment, PurchaseOrder
 from app.utils import ok, created, err, not_found, server_err, parse_date
+from app.auth import login_required, role_required, current_user
+from datetime import datetime, timezone
 
 payments_bp = Blueprint("payments", __name__)
 
@@ -137,8 +139,9 @@ def create_payment():
             payment_mode = payment_mode or None,
             bank_ref     = (data.get("bank_ref")  or "").strip() or None,
             cheque_no    = (data.get("cheque_no") or "").strip() or None,
-            status       = data.get("status", "Pending"),
-            remarks      = (data.get("remarks") or "").strip() or None,
+            status          = "Pending",
+            approval_status = "Pending Approval",
+            remarks         = (data.get("remarks") or "").strip() or None,
         )
         db.session.add(p)
         db.session.commit()
@@ -202,6 +205,9 @@ def record_utr(pid):
     if p.status == "Paid":
         return err("Payment is already marked Paid", 409)
 
+    if p.approval_status != "Approved":
+        return err("Payment must be approved by COO before entering UTR", 403)
+
     data = request.get_json(silent=True) or {}
     utr  = (data.get("utr_number") or "").strip()
     if not utr:
@@ -216,6 +222,58 @@ def record_utr(pid):
             p.remarks = data["remarks"]
         db.session.commit()
         return ok(p.to_dict(), f"UTR {utr} recorded — payment marked Paid")
+    except Exception as e:
+        db.session.rollback()
+        return server_err(e)
+
+
+
+# ─── COO APPROVE ─────────────────────────────────────────────
+@payments_bp.patch("/<int:pid>/approve")
+@role_required("coo")
+def approve_payment(pid):
+    p = Payment.query.get(pid)
+    if not p:
+        return not_found("Payment")
+
+    if p.approval_status == "Approved":
+        return err("Payment is already approved", 409)
+
+    if p.status == "Paid":
+        return err("Payment is already paid", 409)
+
+    user = current_user()
+    try:
+        p.approval_status = "Approved"
+        p.approved_by     = user.get("display_name") or user.get("username", "")
+        p.approved_at     = datetime.now(timezone.utc)
+        db.session.commit()
+        return ok(p.to_dict(), f"Payment {pid} approved")
+    except Exception as e:
+        db.session.rollback()
+        return server_err(e)
+
+
+# ─── COO REJECT ──────────────────────────────────────────────
+@payments_bp.patch("/<int:pid>/reject-payment")
+@role_required("coo")
+def reject_payment(pid):
+    p = Payment.query.get(pid)
+    if not p:
+        return not_found("Payment")
+
+    if p.status == "Paid":
+        return err("Cannot reject a paid payment", 409)
+
+    data = request.get_json(silent=True) or {}
+    try:
+        p.approval_status = "Rejected"
+        p.approved_by     = (current_user() or {}).get("display_name", "")
+        p.approved_at     = datetime.now(timezone.utc)
+        if data.get("remarks"):
+            p.remarks = data["remarks"]
+        db.session.commit()
+        return ok(p.to_dict(), f"Payment {pid} rejected")
     except Exception as e:
         db.session.rollback()
         return server_err(e)

@@ -6,8 +6,11 @@
 const Payments = (() => {
 
   let _filter   = '';
+  let _all      = [];   /* full cached list for client-side search */
   let _payCtx   = {};   /* context for payment modal */
   let _utrPayId = null; /* payment ID for UTR modal  */
+
+  const _isCOO = () => window.PROCUREIQ && window.PROCUREIQ.userRole === 'coo';
 
   /* ─────────────────────────────────────────────
      LIST
@@ -25,6 +28,7 @@ const Payments = (() => {
       return;
     }
     const pays = r.data || [];
+    _all = pays;
     if (!pays.length) {
       wrap.innerHTML = Utils.emptyState('💳', 'No payments recorded yet.');
       return;
@@ -35,12 +39,45 @@ const Payments = (() => {
   function filter(status, tabEl) {
     document.querySelectorAll('#pay-filter-tabs .tab').forEach(t => t.classList.remove('active'));
     if (tabEl) tabEl.classList.add('active');
+    const searchEl = document.getElementById('pay-search');
+    if (searchEl) searchEl.value = '';
     load(status);
   }
 
+  function search() {
+    const q = (document.getElementById('pay-search')?.value || '').toLowerCase().trim();
+    const wrap = document.getElementById('payments-list');
+    if (!wrap) return;
+
+    const source = _all;
+    if (!source.length) return;
+
+    const filtered = q
+      ? source.filter(p =>
+          [p.po_id, p.vendor_name, p.utr_number, p.payment_mode,
+           p.payment_type, p.status, p.department, p.payment_date]
+            .join(' ').toLowerCase().includes(q)
+        )
+      : source;
+
+    if (!filtered.length) {
+      wrap.innerHTML = Utils.emptyState('🔍', `No payments match "${Utils.esc(q)}".`);
+      return;
+    }
+    wrap.innerHTML = filtered.map(_card).join('');
+  }
+
   function _card(p) {
-    const bal = Math.max(0, (p.po_grand || 0) - p.amount);
+    const bal  = Math.max(0, (p.po_grand || 0) - p.amount);
     const paid = p.status === 'Paid';
+
+    // Only show approval badge/controls when payment is NOT yet completed.
+    // Paid payments have cleared the workflow — no COO badge needed.
+    const needsApproval  = !paid;
+    const approvalStatus = needsApproval ? (p.approval_status || 'Pending Approval') : null;
+    const approvalCls    = approvalStatus === 'Approved' ? 'badge-green'
+                         : approvalStatus === 'Rejected' ? 'badge-red'
+                         : 'badge-amber';
 
     return `
       <div class="pay-card">
@@ -52,7 +89,12 @@ const Payments = (() => {
               ${p.department ? ' · ' + Utils.esc(p.department) : ''}
             </div>
           </div>
-          ${Utils.payBadge(p.status)}
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            ${Utils.payBadge(p.status)}
+            ${approvalStatus
+              ? `<span class="badge ${approvalCls}" style="font-size:10px;">COO: ${approvalStatus}</span>`
+              : ''}
+          </div>
         </div>
 
         <div class="pay-amts">
@@ -96,17 +138,30 @@ const Payments = (() => {
         </div>
 
         <div class="pay-card-actions">
-          ${!paid
+          ${_isCOO() && approvalStatus === 'Pending Approval'
+            ? `<button class="btn btn-sm btn-green"
+                       onclick="Payments.approve(${p.id})">
+                 ✓ Approve
+               </button>
+               <button class="btn btn-sm btn-red"
+                       onclick="Payments.rejectPayment(${p.id})">
+                 ✕ Reject
+               </button>`
+            : ''}
+          ${!paid && approvalStatus === 'Approved'
             ? `<button class="btn btn-sm btn-primary"
                        onclick="Payments.openUTR(${p.id},'${Utils.esc(p.po_id)}','${Utils.esc(p.vendor_name || '')}',${p.amount})">
                  Enter UTR →
                </button>`
             : ''}
+          ${!paid && approvalStatus === 'Pending Approval' && !_isCOO()
+            ? `<span style="font-size:11px;color:var(--text3);font-style:italic;">Awaiting COO approval</span>`
+            : ''}
           <button class="btn btn-sm"
                   onclick="PO && PO.view('${Utils.esc(p.po_id)}')">
             View PO
           </button>
-          ${!paid
+          ${!paid && approvalStatus !== 'Approved'
             ? `<button class="btn btn-sm" style="color:var(--red);"
                        onclick="Payments.remove(${p.id})">
                  Delete
@@ -150,23 +205,44 @@ const Payments = (() => {
     const date = _fldVal('pay-date');
     if (!date)  { Utils.toast('Payment date is required.');   return; }
 
-    const utr = _fldVal('pay-utr').toUpperCase();
-
     const body = {
       po_id:        poId,
       amount:       amt,
       payment_date: date,
       payment_mode: document.getElementById('pay-mode')?.value || 'NEFT',
       payment_type: document.getElementById('pay-type')?.value || 'Full',
-      utr_number:   utr || null,
-      status:       utr ? 'Paid' : 'Pending',
       remarks:      _fldVal('pay-remarks') || null,
     };
 
     const r = await API.Payments.create(body);
     if (r.success) {
-      Utils.toastSuccess('Payment recorded.');
+      Utils.toastSuccess('Payment recorded — awaiting COO approval.');
       Modal.close('pay-modal');
+      load();
+    } else {
+      Utils.toastError(r.message);
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     COO APPROVE / REJECT
+  ───────────────────────────────────────────── */
+  async function approve(id) {
+    if (!confirm('Approve this payment?')) return;
+    const r = await API.Payments.approve(id);
+    if (r.success) {
+      Utils.toastSuccess('Payment approved — accounts can now enter UTR.');
+      load();
+    } else {
+      Utils.toastError(r.message);
+    }
+  }
+
+  async function rejectPayment(id) {
+    const remarks = prompt('Reason for rejection (optional):') ?? '';
+    const r = await API.Payments.reject(id, { remarks });
+    if (r.success) {
+      Utils.toastSuccess('Payment rejected.');
       load();
     } else {
       Utils.toastError(r.message);
@@ -200,7 +276,6 @@ const Payments = (() => {
       Utils.toastSuccess(`UTR ${utr} recorded — payment marked Paid.`);
       Modal.close('utr-modal');
       load();
-      /* Also refresh dashboard if its function is available */
       if (typeof Dashboard !== 'undefined') Dashboard.load();
     } else {
       Utils.toastError(r.message);
@@ -222,7 +297,7 @@ const Payments = (() => {
   function _fldVal(id)   { return document.getElementById(id)?.value.trim() || ''; }
   function _set(id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; }
 
-  return { load, filter, openModal, updateBalance, save, openUTR, submitUTR, remove };
+  return { load, filter, search, openModal, updateBalance, save, openUTR, submitUTR, approve, rejectPayment, remove };
 })();
 
 window.Payments = Payments;

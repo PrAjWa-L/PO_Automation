@@ -11,7 +11,7 @@ from app.auth import role_required
 ai_bp = Blueprint("ai", __name__)
 
 OLLAMA_URL   = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2"
+OLLAMA_MODEL = "llama3.2:3b"
 
 
 @ai_bp.post("/compare-quotations")

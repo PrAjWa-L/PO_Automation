@@ -285,6 +285,11 @@ class Payment(db.Model):
     # Status: Pending | Paid | Failed | Cancelled
     status       = db.Column(db.String(20), default="Pending", nullable=False)
 
+    # COO approval workflow
+    approval_status = db.Column(db.String(20), default="Pending Approval", nullable=True, server_default="Pending Approval")
+    approved_by     = db.Column(db.String(120))
+    approved_at     = db.Column(db.DateTime(timezone=True))
+
     remarks      = db.Column(db.Text)
 
     created_at   = db.Column(db.DateTime(timezone=True), default=utcnow)
@@ -305,6 +310,9 @@ class Payment(db.Model):
             "payment_mode": self.payment_mode,
             "cheque_no":    self.cheque_no,
             "status":       self.status,
+            "approval_status": self.approval_status or "Pending Approval",
+            "approved_by":  self.approved_by,
+            "approved_at":  self.approved_at.isoformat() if self.approved_at else None,
             "remarks":      self.remarks,
             "created_at":   self.created_at.isoformat() if self.created_at else None,
             "updated_at":   self.updated_at.isoformat() if self.updated_at else None,
@@ -410,4 +418,4 @@ class Indent(db.Model):
             "approved_at":  self.approved_at.isoformat() if self.approved_at else None,
             "po_id":        self.po_id,
             "created_at":   self.created_at.isoformat() if self.created_at else None,
-        }   
+        }

@@ -19,7 +19,10 @@
     <button class="tab" onclick="Payments.filter('Cancelled', this)">Cancelled</button>
   </div>
   <div class="spacer"></div>
-  <button class="btn btn-primary" onclick="Payments.openModal()">+ Record Payment</button>
+  <input id="pay-search"
+         placeholder="Search PO, vendor, UTR…"
+         style="max-width:220px;"
+         oninput="Payments.search()">
 </div>
 
 <div id="payments-list">
