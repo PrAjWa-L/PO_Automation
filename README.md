@@ -218,7 +218,5 @@ po_automation/
 │       └── health.py
 ├── run.py                 # Entry point
 ├── requirements.txt
-├── .env.example
-├── deploy_windows.bat     # NSSM service installer
 └── README.md
 ```
