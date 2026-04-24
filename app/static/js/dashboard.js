@@ -5,8 +5,16 @@
 
 const Dashboard = (() => {
 
+  // Keep chart instances so we can destroy before redraw
+  let _charts = {};
+
   async function load() {
-    await Promise.all([_loadStats(), _loadRecentPOs(), _loadPendingUTR()]);
+    await Promise.all([
+      _loadStats(),
+      _loadRecentPOs(),
+      _loadPendingUTR(),
+      _loadCharts(),
+    ]);
   }
 
   /* ── Stats ── */
@@ -14,21 +22,139 @@ const Dashboard = (() => {
     const r = await API.POs.stats();
     if (!r.success || !r.data) return;
     const d = r.data;
-    _set('ds-total',   d.total_pos || 0);
-    _set('ds-pending', d.pending   || 0);
-    _set('ds-approved',d.approved  || 0);
-    _set('ds-spend',   Utils.fmtCurrency(d.ytd_spend || 0));
-
-    /* Update sidebar badges */
+    _set('ds-total',    d.total_pos || 0);
+    _set('ds-pending',  d.pending   || 0);
+    _set('ds-approved', d.approved  || 0);
+    _set('ds-spend',    Utils.fmtCurrency(d.ytd_spend || 0));
     Utils.setNavBadge('nb-po',   (d.draft || 0) + (d.pending || 0));
     Utils.setNavBadge('nb-appr',  d.pending || 0);
+  }
+
+  /* ── Charts ── */
+  async function _loadCharts() {
+    const [statsRes, deptRes, payRes] = await Promise.all([
+      API.POs.stats(),
+      API.POs.deptSpend(),
+      API.Payments.summary(),
+    ]);
+
+    if (statsRes.success && statsRes.data) _drawPOStatus(statsRes.data);
+    if (deptRes.success  && deptRes.data)  _drawDeptSpend(deptRes.data);
+    if (payRes.success   && payRes.data)   _drawPayStatus(payRes.data);
+  }
+
+  function _drawPOStatus(d) {
+    const canvas = document.getElementById('chart-po-status');
+    if (!canvas) return;
+    if (_charts.poStatus) _charts.poStatus.destroy();
+
+    const closed   = (d.total_pos || 0) - (d.draft || 0) - (d.pending || 0) - (d.approved || 0);
+    _charts.poStatus = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Draft', 'Pending Approval', 'Approved', 'Closed/Rejected'],
+        datasets: [{
+          data: [d.draft || 0, d.pending || 0, d.approved || 0, Math.max(closed, 0)],
+          backgroundColor: ['#9ca3af', '#f59e0b', '#22c55e', '#3b82f6'],
+          borderWidth: 2,
+          borderColor: '#ffffff',
+        }],
+      },
+      options: {
+        cutout: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } },
+        },
+        maintainAspectRatio: false,
+      },
+    });
+  }
+
+  function _drawDeptSpend(rows) {
+    const canvas = document.getElementById('chart-dept-spend');
+    if (!canvas) return;
+    if (_charts.deptSpend) _charts.deptSpend.destroy();
+
+    const palette = ['#3b82f6','#22c55e','#f59e0b','#ef4444',
+                     '#8b5cf6','#06b6d4','#f97316','#ec4899'];
+
+    _charts.deptSpend = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: rows.map(r => r.department),
+        datasets: [{
+          label: 'Approved Spend (₹)',
+          data: rows.map(r => r.total),
+          backgroundColor: rows.map((_, i) => palette[i % palette.length]),
+          borderRadius: 4,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        indexAxis: rows.length > 4 ? 'y' : 'x',   // horizontal if many depts
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ' ₹' + ctx.parsed[rows.length > 4 ? 'x' : 'y']
+                              .toLocaleString('en-IN', { maximumFractionDigits: 0 }),
+            },
+          },
+        },
+        scales: {
+          x: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } },
+          y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } },
+        },
+        maintainAspectRatio: false,
+      },
+    });
+  }
+
+  function _drawPayStatus(data) {
+    const canvas = document.getElementById('chart-pay-status');
+    if (!canvas) return;
+    if (_charts.payStatus) _charts.payStatus.destroy();
+
+    const colorMap = {
+      Paid:      '#22c55e',
+      Pending:   '#f59e0b',
+      Failed:    '#ef4444',
+      Cancelled: '#9ca3af',
+    };
+
+    const labels = Object.keys(data);
+    const values = Object.values(data);
+
+    _charts.payStatus = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: labels.map(l => colorMap[l] || '#3b82f6'),
+          borderWidth: 2,
+          borderColor: '#ffffff',
+        }],
+      },
+      options: {
+        cutout: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ' ₹' + ctx.parsed.toLocaleString('en-IN', { maximumFractionDigits: 0 }),
+            },
+          },
+        },
+        maintainAspectRatio: false,
+      },
+    });
   }
 
   /* ── Recent POs ── */
   async function _loadRecentPOs() {
     const wrap = document.getElementById('dash-recent-po');
     if (!wrap) return;
-
     const r = await API.POs.list('');
     if (!r.success) {
       wrap.innerHTML = Utils.emptyState('⚠', 'Backend offline.');
@@ -42,9 +168,7 @@ const Dashboard = (() => {
     wrap.innerHTML = `
       <table>
         <thead>
-          <tr>
-            <th>PO #</th><th>Vendor</th><th>Amount</th><th>Status</th>
-          </tr>
+          <tr><th>PO #</th><th>Vendor</th><th>Amount</th><th>Status</th></tr>
         </thead>
         <tbody>
           ${pos.map(p => `
@@ -62,7 +186,6 @@ const Dashboard = (() => {
   async function _loadPendingUTR() {
     const wrap = document.getElementById('dash-pending-utr');
     if (!wrap) return;
-
     const r = await API.Payments.pendingUTR();
     if (!r.success) {
       wrap.innerHTML = Utils.emptyState('⚠', 'Could not load payment data.');
@@ -70,7 +193,6 @@ const Dashboard = (() => {
     }
     const pays = r.data || [];
     Utils.setNavBadge('nb-pay', pays.length);
-
     if (!pays.length) {
       wrap.innerHTML = Utils.emptyState('✅', 'No pending UTR entries.');
       return;

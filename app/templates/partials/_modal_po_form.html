@@ -89,13 +89,6 @@
           </select>
         </div>
 
-        {# ── Requested By — accounts team dropdown ── #}
-       <div class="fg">
-          <label>Requested By *</label>
-          <select id="f-reqby" data-team="accounts">
-            <option value="">— Select person —</option>
-          </select>
-        </div>
         <div class="fg">
           <label>Created By *</label>
           <select id="f-createdby" data-team="accounts">
@@ -116,14 +109,18 @@
 
         <div class="fg">
           <label>Payment Terms</label>
-          <select id="f-payterms">
+          <select id="f-payterms" onchange="const o=document.getElementById('f-payterms-other');o.style.display=this.value==='Other'?'block':'none';if(this.value!=='Other')o.value='';">
             <option>Net 30</option>
             <option>Net 45</option>
             <option>Net 60</option>
             <option>100% Advance</option>
             <option>50% Advance, 50% on Delivery</option>
             <option>Against Delivery</option>
+            <option value="Other">Other…</option>
           </select>
+          <input type="text" id="f-payterms-other"
+                 placeholder="Enter custom payment terms"
+                 style="display:none;margin-top:6px;">
         </div>
 
         <div class="fg">
@@ -162,7 +159,6 @@
           <thead>
             <tr>
               <th style="min-width:160px;">Item Name</th>
-              <th style="min-width:160px;">Description</th>
               <th style="min-width:90px;">HSN Code</th>
               <th style="min-width:110px;">Dept</th>
               <th style="min-width:65px;">Qty</th>
@@ -222,9 +218,28 @@
         </div>
       </div>
 
-      {# ── Notes ── #}
-      <div class="fg" style="margin-top:12px;">
-        <label>Notes / Terms &amp; Conditions</label>
+{# ── Terms & Conditions Picker ── #}
+      <div style="margin-top:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="margin:0;">Terms &amp; Conditions</label>
+          <button type="button" class="btn btn-sm" onclick="TC.toggle()"
+                  id="tc-toggle-btn">＋ Select from library</button>
+        </div>
+
+        <div id="tc-panel" style="display:none;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:var(--bg-subtle,#f9fafb);overflow:hidden;box-sizing:border-box;width:100%;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+            Check terms to include them in the Notes field below.
+          </div>
+          <div id="tc-list" style="display:flex;flex-direction:column;gap:6px;">
+            {# Populated by tc.js #}
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;">
+            <button type="button" class="btn btn-sm" onclick="TC.selectAll()">Select All</button>
+            <button type="button" class="btn btn-sm" onclick="TC.clearAll()">Clear All</button>
+          </div>
+        </div>
+
+        <label style="margin-top:4px;display:block;">Notes / Additional Instructions</label>
         <textarea id="f-notes"
                   placeholder="Delivery instructions, penalty clause, special conditions…">
         </textarea>

@@ -9,8 +9,11 @@ Purchase Orders API
   GET    /api/purchase-orders/stats         — dashboard summary numbers
 """
 from app.auth import login_required, role_required, current_user
-from flask import Blueprint, request
+from flask import Blueprint, request, send_file
 from app import db
+import io
+from flask import send_file
+from datetime import date
 from app.models import PurchaseOrder, LineItem, Vendor
 from app.utils import (
     ok, created, err, not_found, server_err,
@@ -64,6 +67,224 @@ def stats():
         "ytd_spend":   float(ytd_spend),
     })
 
+# ─── DEPT SPEND (for dashboard chart) ────────────────────────
+@po_bp.get("/dept-spend")
+def dept_spend():
+    from sqlalchemy import func
+    rows = (
+        db.session.query(
+            PurchaseOrder.department,
+            func.sum(PurchaseOrder.grand_total)
+        )
+        .filter(PurchaseOrder.status == "Approved")
+        .group_by(PurchaseOrder.department)
+        .order_by(func.sum(PurchaseOrder.grand_total).desc())
+        .all()
+    )
+    return ok([{"department": dept, "total": float(total or 0)} for dept, total in rows])
+
+# ─── EXPORT APPROVED POs ─────────────────────────────────────
+@po_bp.get("/export")
+@login_required
+def export_approved():
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        return err("openpyxl is not installed. Run: pip install openpyxl", 500)
+
+    pos = (
+        PurchaseOrder.query
+        .filter(PurchaseOrder.status == "Approved")
+        .order_by(PurchaseOrder.po_date.desc())
+        .all()
+    )
+
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: PO Summary ──────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "PO Summary"
+
+    header_fill = PatternFill("solid", fgColor="1a56db")
+    header_font = Font(bold=True, color="FFFFFF", size=10)
+    alt_fill    = PatternFill("solid", fgColor="EEF2FF")
+    border_side = Side(style="thin", color="D1D5DB")
+    cell_border = Border(
+        left=border_side, right=border_side,
+        top=border_side,  bottom=border_side
+    )
+
+    headers = [
+        "PO Number", "PO Date", "Order Type", "Department",
+        "Vendor Name", "Vendor GST", "Requested By", "Approved By",
+        "Payment Terms", "Subtotal (₹)", "Discount (₹)", "GST (₹)",
+        "TDS (₹)", "Grand Total (₹)", "Advance %", "Advance Amt (₹)",
+        "Paid (₹)", "Balance (₹)", "Notes"
+    ]
+
+    for col, h in enumerate(headers, 1):
+        cell = ws1.cell(row=1, column=col, value=h)
+        cell.font      = header_font
+        cell.fill      = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border    = cell_border
+
+    ws1.row_dimensions[1].height = 30
+
+    for row_idx, po in enumerate(pos, 2):
+        payments     = po.payments.all()
+        paid_total   = sum(float(p.amount or 0) for p in payments if p.status == "Paid")
+        balance      = float(po.grand_total or 0) - paid_total
+        fill         = alt_fill if row_idx % 2 == 0 else None
+
+        row_data = [
+            po.id,
+            po.po_date.strftime("%d-%m-%Y") if po.po_date else "",
+            po.order_type or "Purchase Order",
+            po.department,
+            po.vendor_name or "",
+            po.vendor_gst  or "",
+            po.requested_by or "",
+            po.approved_by  or "",
+            po.payment_terms or "",
+            float(po.subtotal    or 0),
+            float(po.discount    or 0),
+            float(po.gst_total   or 0),
+            float(po.tds_amt     or 0),
+            float(po.grand_total or 0),
+            float(po.advance_pct or 0),
+            float(po.advance_amt or 0),
+            round(paid_total, 2),
+            round(balance,    2),
+            po.notes or "",
+        ]
+
+        for col, val in enumerate(row_data, 1):
+            cell           = ws1.cell(row=row_idx, column=col, value=val)
+            cell.border    = cell_border
+            cell.alignment = Alignment(vertical="center")
+            if fill:
+                cell.fill = fill
+
+    # Auto-width
+    col_widths = [14, 12, 16, 14, 28, 18, 18, 18, 14,
+                  14, 13, 12, 10, 16, 11, 16, 12, 12, 30]
+    for i, w in enumerate(col_widths, 1):
+        ws1.column_dimensions[get_column_letter(i)].width = w
+
+    ws1.freeze_panes = "A2"
+
+    # ── Sheet 2: Line Items ──────────────────────────────────
+    ws2 = wb.create_sheet("Line Items")
+
+    li_headers = [
+        "PO Number", "Vendor Name", "Department", "Item Name",
+        "Description", "HSN Code", "Qty", "Unit Price (₹)",
+        "Discount %", "GST %", "CGST (₹)", "SGST (₹)", "Line Total (₹)"
+    ]
+    for col, h in enumerate(li_headers, 1):
+        cell           = ws2.cell(row=1, column=col, value=h)
+        cell.font      = header_font
+        cell.fill      = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border    = cell_border
+
+    ws2.row_dimensions[1].height = 30
+    li_row = 2
+
+    for po in pos:
+        for li in po.line_items:
+            alt = PatternFill("solid", fgColor="EEF2FF") if li_row % 2 == 0 else None
+            row_data = [
+                po.id,
+                po.vendor_name or "",
+                po.department,
+                li.item_name,
+                li.description or "",
+                li.hsn_code    or "",
+                float(li.qty          or 1),
+                float(li.unit_price   or 0),
+                float(li.discount_pct or 0),
+                float(li.gst_pct      or 18),
+                float(li.cgst         or 0),
+                float(li.sgst         or 0),
+                float(li.line_total   or 0),
+            ]
+            for col, val in enumerate(row_data, 1):
+                cell           = ws2.cell(row=li_row, column=col, value=val)
+                cell.border    = cell_border
+                cell.alignment = Alignment(vertical="center")
+                if alt:
+                    cell.fill = alt
+            li_row += 1
+
+    li_widths = [14, 28, 14, 30, 35, 12, 8, 15, 12, 8, 12, 12, 14]
+    for i, w in enumerate(li_widths, 1):
+        ws2.column_dimensions[get_column_letter(i)].width = w
+    ws2.freeze_panes = "A2"
+
+    # ── Sheet 3: Payments ────────────────────────────────────
+    ws3 = wb.create_sheet("Payments")
+
+    pay_headers = [
+        "PO Number", "Vendor Name", "Payment Type", "Amount (₹)",
+        "Payment Date", "Due Date", "Mode", "UTR Number",
+        "Status", "Approval Status", "Approved By", "Remarks"
+    ]
+    for col, h in enumerate(pay_headers, 1):
+        cell           = ws3.cell(row=1, column=col, value=h)
+        cell.font      = header_font
+        cell.fill      = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border    = cell_border
+
+    ws3.row_dimensions[1].height = 30
+    pay_row = 2
+
+    for po in pos:
+        for p in po.payments.all():
+            alt = PatternFill("solid", fgColor="EEF2FF") if pay_row % 2 == 0 else None
+            row_data = [
+                po.id,
+                po.vendor_name or "",
+                p.payment_type,
+                float(p.amount or 0),
+                p.payment_date.strftime("%d-%m-%Y") if p.payment_date else "",
+                p.due_date.strftime("%d-%m-%Y")     if p.due_date     else "",
+                p.payment_mode  or "",
+                p.utr_number    or "",
+                p.status,
+                p.approval_status or "",
+                p.approved_by     or "",
+                p.remarks         or "",
+            ]
+            for col, val in enumerate(row_data, 1):
+                cell           = ws3.cell(row=pay_row, column=col, value=val)
+                cell.border    = cell_border
+                cell.alignment = Alignment(vertical="center")
+                if alt:
+                    cell.fill = alt
+            pay_row += 1
+
+    pay_widths = [14, 28, 14, 14, 14, 12, 10, 24, 10, 16, 20, 30]
+    for i, w in enumerate(pay_widths, 1):
+        ws3.column_dimensions[get_column_letter(i)].width = w
+    ws3.freeze_panes = "A2"
+
+    # ── Stream to response ───────────────────────────────────
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"ProcureIQ_Approved_POs_{date.today().strftime('%Y%m%d')}.xlsx"
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename,
+    )
 
 # ─── GET ONE ─────────────────────────────────────────────────
 @po_bp.get("/<string:po_id>")
@@ -116,7 +337,7 @@ def create_po():
         vendor_bank = data.get("vendor_bank", "").strip()
 
         if vendor_id:
-            v = Vendor.query.get(vendor_id)
+            v = db.session.get(Vendor, po.vendor_id) if po.vendor_id else None
             if v:
                 vendor_name = vendor_name or v.name
                 vendor_gst  = vendor_gst  or (v.gst  or "")

@@ -473,7 +473,12 @@ nav::-webkit-scrollbar { display: none; }
 
 /* ── GRID UTILITIES ──────────────────────────────────────── */
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 
 /* ── SPACING ─────────────────────────────────────────────── */

@@ -6,6 +6,9 @@
 
 {% block topbar_actions %}
 <button class="btn btn-sm" onclick="Reports.load()">↺ Refresh</button>
+<a href="/api/purchase-orders/export" class="btn btn-sm btn-primary" style="text-decoration:none;">
+  ⬇ Export Approved POs
+</a>
 {% endblock %}
 
 {% block content %}

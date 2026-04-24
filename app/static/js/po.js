@@ -261,7 +261,6 @@ const PO = (() => {
     set('f-dept',       po.department);
     set('f-date',       po.po_date);
     set('f-delivery',   po.delivery_date || '');
-    set('f-reqby',      po.requested_by  || '');
     set('f-createdby',  po.created_by    || '');
     set('f-approvedby', po.approved_by   || '');
     set('f-notes',      po.notes         || '');
@@ -271,7 +270,16 @@ const PO = (() => {
 
     // Payment terms
     const payterms = document.getElementById('f-payterms');
-    if (payterms && po.payment_terms) payterms.value = po.payment_terms;
+    if (payterms && po.payment_terms) {
+      const stdTerms = ['Net 30','Net 45','Net 60','100% Advance','50% Advance, 50% on Delivery','Against Delivery'];
+      if (stdTerms.includes(po.payment_terms)) {
+        payterms.value = po.payment_terms;
+      } else {
+        payterms.value = 'Other';
+        const otherBox = document.getElementById('f-payterms-other');
+        if (otherBox) { otherBox.style.display = 'block'; otherBox.value = po.payment_terms; }
+      }
+    }
 
     // Order type radio
     const orderTypeVal = po.order_type || 'Purchase Order';
@@ -314,7 +322,7 @@ const PO = (() => {
 
   function _clearHeader() {
     const fields = {
-      'f-date': Utils.today(), 'f-delivery': '', 'f-reqby': '',
+      'f-date': Utils.today(), 'f-delivery': '',
       'f-createdby': '', 'f-notes': '',
       'f-vgst': '', 'f-vbank': '', 'f-vaddr': '',
       'f-advpct': '0',
@@ -386,6 +394,14 @@ const PO = (() => {
       if (tdsEl) tdsEl.value = '0';
     }
     recalc();
+  }
+
+   function onPayTermsChange() {
+    const sel   = document.getElementById('f-payterms');
+    const other = document.getElementById('f-payterms-other');
+    if (!other) return;
+    other.style.display = sel.value === 'Other' ? 'block' : 'none';
+    if (sel.value !== 'Other') other.value = '';
   }
 
     function onVendorChange() {
@@ -465,8 +481,6 @@ const PO = (() => {
       return `<tr>
         <td><input value="${Utils.esc(it.name)}" placeholder="Item name"
                    oninput="PO._updateLI(${i},'name',this.value)"></td>
-        <td><input value="${Utils.esc(it.desc)}" placeholder="Description"
-                   oninput="PO._updateLI(${i},'desc',this.value)"></td>
         <td><input value="${Utils.esc(it.hsn)}"  placeholder="HSN"
                    oninput="PO._updateLI(${i},'hsn',this.value)"></td>
         <td>
@@ -586,11 +600,12 @@ const PO = (() => {
       vendor_id:     vendorId || null,
       department:    dept,
       po_date:       date,
-      requested_by:  _val('f-reqby'),
       created_by:    _val('f-createdby'),
       approved_by:   document.getElementById('f-approvedby')?.value || '',
       delivery_date: _val('f-delivery') || null,
-      payment_terms: document.getElementById('f-payterms')?.value || 'Net 30',
+      payment_terms: document.getElementById('f-payterms').value === 'Other'
+      ? document.getElementById('f-payterms-other').value.trim()
+      : document.getElementById('f-payterms').value,
       status:        forcedStatus || document.getElementById('f-status')?.value || 'Draft',
       order_type:    document.querySelector('input[name="order-type"]:checked')?.value || 'Purchase Order',
       tds_pct:       +(document.getElementById('f-tds')?.value || 0),
@@ -947,7 +962,6 @@ const PO = (() => {
       vendor_gst:    v?.gst     || '',
       vendor_addr:   v?.address || '',
       department:    document.getElementById('f-dept')?.value || '—',
-      requested_by:  _val('f-reqby'),
       created_by:    _val('f-createdby'),
       approved_by:   document.getElementById('f-approvedby')?.value || 'Pending',
       po_date:       document.getElementById('f-date')?.value || '',
@@ -988,7 +1002,7 @@ const PO = (() => {
 
   return {
     load, filter, search,
-    openNew, openEdit, openFromQuotation, onVendorChange, onOrderTypeChange,
+    openNew, openEdit, openFromQuotation, onVendorChange, onOrderTypeChange, onPayTermsChange,
     addLI, removeLI, _updateLI, recalc,
     save,
     view, approveCurrent, rejectCurrent, _confirmReject, changeStatus,
