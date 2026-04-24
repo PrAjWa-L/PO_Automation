@@ -15,7 +15,9 @@ from app import db
 from app.models import Payment, PurchaseOrder
 from app.utils import ok, created, err, not_found, server_err, parse_date
 from app.auth import login_required, role_required, current_user
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
+import io
+from flask import send_file
 
 payments_bp = Blueprint("payments", __name__)
 
@@ -298,3 +300,177 @@ def delete_payment(pid):
     except Exception as e:
         db.session.rollback()
         return server_err(e)
+    
+# ─── PAYMENT REPORT EXPORT ───────────────────────────────────
+@payments_bp.get("/export")
+@login_required
+def export_payments():
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        return err("openpyxl not installed.", 500)
+
+    from app.models import PurchaseOrder
+
+    payments = (
+        db.session.query(Payment)
+        .join(PurchaseOrder, Payment.po_id == PurchaseOrder.id)
+        .order_by(Payment.payment_date.desc())
+        .all()
+    )
+
+    wb   = openpyxl.Workbook()
+    ws   = wb.active
+    ws.title = "Payment Report"
+
+    # ── Styles ──────────────────────────────────────────────
+    hdr_fill   = PatternFill("solid", fgColor="1a56db")
+    hdr_font   = Font(bold=True, color="FFFFFF", size=10)
+    alt_fill   = PatternFill("solid", fgColor="EEF2FF")
+    paid_fill  = PatternFill("solid", fgColor="D1FAE5")   # green tint
+    pend_fill  = PatternFill("solid", fgColor="FEF3C7")   # amber tint
+    fail_fill  = PatternFill("solid", fgColor="FEE2E2")   # red tint
+    bd         = Side(style="thin", color="D1D5DB")
+    border     = Border(left=bd, right=bd, top=bd, bottom=bd)
+
+    status_fill = {
+        "Paid":      paid_fill,
+        "Pending":   pend_fill,
+        "Failed":    fail_fill,
+        "Cancelled": alt_fill,
+    }
+
+    headers = [
+        "Payment ID", "PO Number", "Vendor Name", "Department",
+        "Payment Type", "Amount (₹)", "Payment Date", "Due Date",
+        "Mode", "UTR Number", "Bank Ref", "Cheque No",
+        "Status", "Approval Status", "Approved By", "Approved At",
+        "PO Grand Total (₹)", "Total Paid (₹)", "Outstanding (₹)", "Remarks",
+    ]
+
+    for col, h in enumerate(headers, 1):
+        cell            = ws.cell(row=1, column=col, value=h)
+        cell.font       = hdr_font
+        cell.fill       = hdr_fill
+        cell.alignment  = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border     = border
+    ws.row_dimensions[1].height = 30
+
+    # Pre-compute total paid per PO
+    from sqlalchemy import func
+    paid_by_po = dict(
+        db.session.query(Payment.po_id, func.sum(Payment.amount))
+        .filter(Payment.status == "Paid")
+        .group_by(Payment.po_id)
+        .all()
+    )
+
+    for row_idx, p in enumerate(payments, 2):
+        po           = p.po
+        total_paid   = float(paid_by_po.get(p.po_id, 0) or 0)
+        grand_total  = float(po.grand_total or 0) if po else 0
+        outstanding  = round(grand_total - total_paid, 2)
+        row_fill     = status_fill.get(p.status, alt_fill if row_idx % 2 == 0 else None)
+
+        row_data = [
+            p.id,
+            p.po_id,
+            po.vendor_name   if po else "—",
+            po.department    if po else "—",
+            p.payment_type,
+            float(p.amount or 0),
+            p.payment_date.strftime("%d-%m-%Y")  if p.payment_date else "",
+            p.due_date.strftime("%d-%m-%Y")      if p.due_date     else "",
+            p.payment_mode   or "",
+            p.utr_number     or "",
+            p.bank_ref       or "",
+            p.cheque_no      or "",
+            p.status,
+            p.approval_status or "",
+            p.approved_by     or "",
+            p.approved_at.strftime("%d-%m-%Y %H:%M") if p.approved_at else "",
+            grand_total,
+            total_paid,
+            outstanding,
+            p.remarks or "",
+        ]
+
+        for col, val in enumerate(row_data, 1):
+            cell           = ws.cell(row=row_idx, column=col, value=val)
+            cell.border    = border
+            cell.alignment = Alignment(vertical="center")
+            if row_fill:
+                cell.fill = row_fill
+
+    # Column widths
+    col_widths = [12, 16, 28, 14, 14, 16, 14, 12,
+                  10, 24, 20, 14, 12, 18, 20, 20,
+                  18, 14, 14, 30]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    ws.freeze_panes = "A2"
+
+    # ── Vendor Summary Sheet ─────────────────────────────────
+    ws2 = wb.create_sheet("Vendor Outstanding")
+
+    vs_headers = ["Vendor Name", "Total PO Value (₹)", "Total Paid (₹)", "Outstanding (₹)", "No. of POs"]
+    for col, h in enumerate(vs_headers, 1):
+        cell           = ws2.cell(row=1, column=col, value=h)
+        cell.font      = hdr_font
+        cell.fill      = hdr_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border    = border
+    ws2.row_dimensions[1].height = 25
+
+    from sqlalchemy import func as f2
+    vendor_summary = (
+        db.session.query(
+            PurchaseOrder.vendor_name,
+            f2.count(PurchaseOrder.id),
+            f2.sum(PurchaseOrder.grand_total),
+        )
+        .filter(PurchaseOrder.status == "Approved")
+        .group_by(PurchaseOrder.vendor_name)
+        .order_by(f2.sum(PurchaseOrder.grand_total).desc())
+        .all()
+    )
+
+    for row_idx, (vname, po_count, po_total) in enumerate(vendor_summary, 2):
+        total_po   = float(po_total or 0)
+        total_pd   = float(paid_by_po.get(vname, 0) or 0)
+
+        # Sum paid across all POs for this vendor
+        vendor_paid = db.session.query(f2.sum(Payment.amount))\
+            .join(PurchaseOrder, Payment.po_id == PurchaseOrder.id)\
+            .filter(PurchaseOrder.vendor_name == vname, Payment.status == "Paid")\
+            .scalar() or 0
+        vendor_paid  = float(vendor_paid)
+        outstanding  = round(total_po - vendor_paid, 2)
+        row_fill     = paid_fill if outstanding <= 0 else (pend_fill if outstanding < total_po else fail_fill)
+
+        row_data = [vname, total_po, vendor_paid, outstanding, po_count]
+        for col, val in enumerate(row_data, 1):
+            cell           = ws2.cell(row=row_idx, column=col, value=val)
+            cell.border    = border
+            cell.alignment = Alignment(vertical="center")
+            cell.fill      = row_fill
+
+    for i, w in enumerate([30, 20, 18, 18, 12], 1):
+        ws2.column_dimensions[get_column_letter(i)].width = w
+    ws2.freeze_panes = "A2"
+
+    # ── Stream ───────────────────────────────────────────────
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"ProcureIQ_Payment_Report_{date.today().strftime('%Y%m%d')}.xlsx"
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename,
+    )
