@@ -88,6 +88,44 @@
   --t-sb:   0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ── DARK THEME ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:       #0f172a;
+  --surface:  #1e293b;
+  --surface2: #1e293b;
+  --surface3: #0f172a;
+  --surface4: #334155;
+
+  --border:  #334155;
+  --border2: #475569;
+
+  --text:  #f1f5f9;
+  --text2: #94a3b8;
+  --text3: #64748b;
+
+  --accent:    #3b82f6;
+  --accent-lt: #60a5fa;
+  --accent-bg: #1e3a5f;
+  --accent-b:  #1d4ed8;
+
+  --green-bg: #052e16;
+  --green-b:  #166534;
+  --amber-bg: #1c1400;
+  --amber-b:  #92400e;
+  --red-bg:   #1c0505;
+  --red-b:    #991b1b;
+  --blue-bg:  #1e3a5f;
+  --blue-b:   #1d4ed8;
+  --purple-bg:#2e1065;
+  --purple-b: #5b21b6;
+  --teal-bg:  #042f2e;
+  --teal-b:   #115e59;
+
+  --sh:    0 1px 2px rgba(0,0,0,.3), 0 1px 6px rgba(0,0,0,.4);
+  --sh-md: 0 4px 16px rgba(0,0,0,.5);
+  --sh-lg: 0 8px 32px rgba(0,0,0,.6);
+}
+
 /* ── RESET & BASE ───────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 

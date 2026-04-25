@@ -7,6 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script>
+  (function() {
+    const t = localStorage.getItem('procureiq-theme');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+  })();
+  </script>
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -187,6 +193,13 @@
       </div>
       <div class="topbar-actions">
         {% block topbar_actions %}{% endblock %}
+        <button id="theme-toggle" onclick="Theme.toggle()"
+                title="Toggle dark/light mode"
+                style="background:none;border:1px solid var(--border);border-radius:var(--r);
+                       padding:5px 10px;cursor:pointer;font-size:15px;color:var(--text2);
+                       line-height:1;transition:background .2s;">
+          🌙
+        </button>
       </div>
     </header>
 
@@ -224,6 +237,7 @@
   <script src="{{ url_for('static', filename='js/tc.js') }}"></script>
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
   <script src="{{ url_for('static', filename='js/indents.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
   {% block extra_scripts %}{% endblock %}
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
