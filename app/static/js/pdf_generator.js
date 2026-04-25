@@ -22,12 +22,12 @@ const PDFGen = (() => {
 
   // Colours
   const C = {
-    blue:     [26,  86, 219],   // #1a56db
-    darkBlue: [21,  67, 172],
+    blue:     [0,   128, 128],   // teal — matches letterhead
+    darkBlue: [0,   100, 100],   // darker teal
     black:    [17,  24,  39],
     grey:     [107,114, 128],
     lightGrey:[209,213, 219],
-    bgLight:  [238,242, 255],   // #EEF2FF
+    bgLight:  [232,245, 245],   // teal-tinted light background
     bgRow:    [249,250, 251],
     white:    [255,255, 255],
   };
@@ -130,65 +130,40 @@ const PDFGen = (() => {
     y += 14;
 
     /* ══════════════════════════════════════════════════════════
-       2. BUYER | VENDOR  two-column block
+       2. VENDOR block (full width)
     ══════════════════════════════════════════════════════════ */
-    const colL  = M;
-    const colR  = M + CW * 0.52;
-    const colLW = CW * 0.48;
-    const colRW = CW * 0.46;
-    let yL = y, yR = y;
-
-    // — Buyer (left) —
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...C.black);
-    const orgLines = doc.splitTextToSize(ORG.name, colLW);
-    doc.text(orgLines, colL, yL);
-    yL += orgLines.length * 5 + 1.5;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.grey);
-    const addrLine = ORG.addr;
-    const addrLines = doc.splitTextToSize(addrLine, colLW);
-    doc.text(addrLines, colL, yL);
-    yL += addrLines.length * 4 + 1;
-    doc.text('GSTIN: 29AAHFC6018K1Z8', colL, yL);  yL += 4;
-    doc.text('Tel: ' + ORG.tel + '  |  ' + ORG.email, colL, yL); yL += 4;
-
-    // — Vendor (right) —
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...C.grey);
-    doc.text('VENDOR', colR, yR);
-    yR += 5;
+    doc.text('VENDOR', M, y);
+    y += 5;
 
     const vname = po.vendor_name || '—';
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...C.black);
-    const vnLines = doc.splitTextToSize(vname, colRW);
-    doc.text(vnLines, colR, yR);
-    yR += vnLines.length * 5 + 1.5;
+    const vnLines = doc.splitTextToSize(vname, CW);
+    doc.text(vnLines, M, y);
+    y += vnLines.length * 5 + 1.5;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...C.grey);
     if (po.vendor_addr) {
-      const vaLines = doc.splitTextToSize(po.vendor_addr, colRW);
-      doc.text(vaLines, colR, yR);
-      yR += vaLines.length * 4 + 1;
+      const vaLines = doc.splitTextToSize(po.vendor_addr, CW);
+      doc.text(vaLines, M, y);
+      y += vaLines.length * 4 + 1;
     }
     if (po.vendor_gst) {
-      doc.text('GSTIN: ' + po.vendor_gst, colR, yR); yR += 4;
+      doc.text('GSTIN: ' + po.vendor_gst, M, y); y += 4;
     }
     if (po.vendor_bank) {
-      const vbLines = doc.splitTextToSize('Bank: ' + po.vendor_bank, colRW);
-      doc.text(vbLines, colR, yR);
-      yR += vbLines.length * 4 + 1;
+      const vbLines = doc.splitTextToSize('Bank: ' + po.vendor_bank, CW);
+      doc.text(vbLines, M, y);
+      y += vbLines.length * 4 + 1;
     }
 
-    y = Math.max(yL, yR) + 4;
+    y += 4;
 
     /* ══════════════════════════════════════════════════════════
        3. SUPPLIER CODE / PO META row  (blue-labelled grid)
@@ -235,13 +210,13 @@ const PDFGen = (() => {
     y += 5;
 
     /* ══════════════════════════════════════════════════════════
-       4. BILL TO / SHIP TO  (blue header cells)
+       4. BILL TO / SHIP TO  (teal header cells)
     ══════════════════════════════════════════════════════════ */
     const halfW = CW / 2;
     const bAddr = ORG.name + '\n' + ORG.addr + '\nGSTIN: 29AAHFC6018K1Z8' +
                   '\nContact: ' + ORG.tel + '\nEmail: ' + ORG.email;
 
-    // Draw blue header cells
+    // Draw teal header cells
     doc.setFillColor(...C.blue);
     doc.rect(M,             y, halfW - 0.5, 7, 'F');
     doc.rect(M + halfW + 0.5, y, halfW - 0.5, 7, 'F');
@@ -341,14 +316,14 @@ const PDFGen = (() => {
 
     // Column widths
     const cws = intra
-      ? [10, 16, 38, 22, 18, 12, 18, 10, 16, 16, 16]   // sum = 192 → tableWidth clips to 182
+      ? [10, 16, 38, 22, 18, 12, 18, 10, 16, 16, 16]
       : [10, 16, 52, 24, 18, 12, 24, 12,             24];
 
     const colStyles = {};
     cws.forEach((w, i) => {
       colStyles[i] = { cellWidth: w, halign: [0,1,2,3].includes(i) ? 'center' : 'right' };
     });
-    colStyles[2] = { cellWidth: cws[2], halign: 'left' };  // item name left-aligned
+    colStyles[2] = { cellWidth: cws[2], halign: 'left' };
 
     doc.autoTable({
       head: heads,
@@ -364,7 +339,7 @@ const PDFGen = (() => {
         valign: 'middle',
       },
       headStyles: {
-        fillColor: C.blue,
+        fillColor: C.blue,        // teal table header
         textColor: C.white,
         fontStyle: 'bold',
         fontSize: 7.5,
@@ -411,7 +386,7 @@ const PDFGen = (() => {
 
     // Divider + Grand Total
     y += 2;
-    doc.setDrawColor(...C.blue);
+    doc.setDrawColor(...C.blue);   // teal divider
     doc.setLineWidth(0.5);
     doc.line(boxX - 4, y, PW - M + 4, y);
     y += 5;
@@ -423,7 +398,7 @@ const PDFGen = (() => {
     doc.setFontSize(11);
     doc.setTextColor(...C.black);
     doc.text('Grand Total', boxX, y + 4);
-    doc.setTextColor(...C.blue);
+    doc.setTextColor(...C.blue);   // teal grand total amount
     const gt = parseFloat(po.grand_total || 0);
     doc.text('Rs.' + gt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), PW - M - 2, y + 4, { align: 'right' });
     y += 14;
@@ -448,14 +423,14 @@ const PDFGen = (() => {
     }
 
     /* ══════════════════════════════════════════════════════════
-       8. SIGNATURE BOX  (right side, blue header)
+       8. SIGNATURE BOX  (right side, teal header)
     ══════════════════════════════════════════════════════════ */
     const sigX = M;
     const sigW = 75;
     const sigY = y;
 
-    // Blue header
-    doc.setFillColor(...C.blue);
+    // Teal header
+    doc.setFillColor(...C.blue);   // teal signature header
     doc.roundedRect(sigX, sigY, sigW, 8, 1.5, 1.5, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);

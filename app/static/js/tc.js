@@ -100,7 +100,17 @@ const TC = (() => {
     },
   ];
 
+  // Tracks per-term edited text (keyed by term id). Populated on first expand.
+  const _edits = {};
+
   let _rendered = false;
+
+  // Get the current text for a term (edited version if changed, else original)
+  function _getText(id) {
+    const term = LIBRARY.find(t => t.id === id);
+    if (!term) return '';
+    return _edits[id] !== undefined ? _edits[id] : term.text;
+  }
 
   function _render() {
     if (_rendered) return;
@@ -108,20 +118,126 @@ const TC = (() => {
     if (!list) return;
 
     list.innerHTML = LIBRARY.map(t => `
-      <div style="display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start;padding:6px 4px;border-bottom:1px solid var(--border);cursor:pointer;"
-           onclick="document.getElementById('tc-${t.id}').click()">
-        <input type="checkbox" id="tc-${t.id}"
-               style="margin-top:3px;cursor:pointer;"
-               onclick="event.stopPropagation()"
-               onchange="TC.onCheck('${t.id}')">
-        <div>
-          <div style="font-size:12px;font-weight:600;color:var(--text);">${t.label}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4;word-break:break-word;">${t.text.substring(0, 100)}…</div>
+      <div style="border-bottom:1px solid var(--border);">
+
+        <!-- Header row: checkbox + label + edit toggle -->
+        <div style="display:grid;grid-template-columns:18px 1fr auto;gap:8px;
+                    align-items:start;padding:6px 4px;cursor:pointer;"
+             onclick="document.getElementById('tc-${t.id}').click()">
+          <input type="checkbox" id="tc-${t.id}"
+                 style="margin-top:3px;cursor:pointer;"
+                 onclick="event.stopPropagation()"
+                 onchange="TC.onCheck('${t.id}')">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text);">${t.label}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;
+                        line-height:1.4;word-break:break-word;">
+              ${t.text.substring(0, 100)}…
+            </div>
+          </div>
+          <!-- Edit button — stops row click so checkbox isn't toggled -->
+          <button
+            onclick="event.stopPropagation(); TC.toggleEdit('${t.id}')"
+            id="tc-edit-btn-${t.id}"
+            title="Edit this term"
+            style="font-size:11px;padding:2px 7px;border-radius:5px;
+                   border:1px solid var(--border);background:var(--surface2);
+                   color:var(--text2);cursor:pointer;white-space:nowrap;
+                   align-self:center;">
+            ✏ Edit
+          </button>
         </div>
+
+        <!-- Inline edit panel (hidden by default) -->
+        <div id="tc-edit-panel-${t.id}"
+             style="display:none;padding:4px 8px 10px 26px;">
+          <textarea
+            id="tc-edit-ta-${t.id}"
+            rows="4"
+            style="width:100%;font-size:11.5px;line-height:1.5;
+                   border:1px solid var(--border);border-radius:6px;
+                   padding:6px 8px;resize:vertical;
+                   background:var(--surface);color:var(--text);
+                   box-sizing:border-box;"
+            oninput="TC._onEditInput('${t.id}', this.value)"
+          ></textarea>
+          <div style="display:flex;gap:6px;margin-top:5px;">
+            <button onclick="TC.applyEdit('${t.id}')"
+                    style="font-size:11px;padding:3px 10px;border-radius:5px;
+                           border:none;background:var(--blue,#1a56db);
+                           color:#fff;cursor:pointer;">
+              ✓ Apply
+            </button>
+            <button onclick="TC.resetEdit('${t.id}')"
+                    style="font-size:11px;padding:3px 10px;border-radius:5px;
+                           border:1px solid var(--border);background:var(--surface2);
+                           color:var(--text2);cursor:pointer;">
+              Reset to default
+            </button>
+          </div>
+        </div>
+
       </div>
     `).join('');
 
     _rendered = true;
+  }
+
+  /* Open / close the inline edit panel for a term */
+  function toggleEdit(id) {
+    const panel = document.getElementById(`tc-edit-panel-${id}`);
+    const btn   = document.getElementById(`tc-edit-btn-${id}`);
+    const ta    = document.getElementById(`tc-edit-ta-${id}`);
+    if (!panel) return;
+
+    const isOpen = panel.style.display !== 'none';
+    if (isOpen) {
+      panel.style.display = 'none';
+      btn.textContent = '✏ Edit';
+    } else {
+      // Populate textarea with current text (edited or original)
+      ta.value = _getText(id);
+      panel.style.display = 'block';
+      btn.textContent = '✕ Close';
+      ta.focus();
+    }
+  }
+
+  /* Live-save edits to _edits map as the user types */
+  function _onEditInput(id, value) {
+    _edits[id] = value;
+  }
+
+  /* Apply: if term is already checked, update the notes field with the new text */
+  function applyEdit(id) {
+    const cb = document.getElementById(`tc-${id}`);
+    if (cb && cb.checked) {
+      // Replace the old version in the notes field with the new one
+      const term   = LIBRARY.find(t => t.id === id);
+      const oldTxt = term ? term.text : '';
+      const newTxt = _getText(id);
+      const notes  = document.getElementById('f-notes');
+      if (notes) {
+        // Try to replace the old text (original or previous edit)
+        if (notes.value.includes(oldTxt)) {
+          notes.value = notes.value.replace(oldTxt, newTxt);
+        } else {
+          // Already replaced once — just append if not present
+          if (!notes.value.includes(newTxt)) {
+            notes.value = notes.value.trim() + '\n\n' + newTxt;
+          }
+        }
+      }
+    }
+    // Close the panel
+    toggleEdit(id);
+  }
+
+  /* Reset a term's text back to the library default */
+  function resetEdit(id) {
+    delete _edits[id];
+    const ta = document.getElementById(`tc-edit-ta-${id}`);
+    if (ta) ta.value = _getText(id);
   }
 
   function toggle() {
@@ -135,19 +251,25 @@ const TC = (() => {
   }
 
   function onCheck(id) {
-    const term  = LIBRARY.find(t => t.id === id);
-    if (!term) return;
     const cb    = document.getElementById(`tc-${id}`);
     const notes = document.getElementById('f-notes');
     if (!notes) return;
 
+    const text = _getText(id);   // use edited version if available
+
     if (cb.checked) {
-      // Append term to notes
       const current = notes.value.trim();
-      notes.value = current ? current + '\n\n' + term.text : term.text;
+      notes.value = current ? current + '\n\n' + text : text;
     } else {
-      // Remove term from notes
-      notes.value = notes.value.replace(term.text, '').replace(/\n{3,}/g, '\n\n').trim();
+      // Remove this term's text from notes (handles edited version too)
+      const term    = LIBRARY.find(t => t.id === id);
+      const origTxt = term ? term.text : '';
+      // Try to remove edited version first, then original
+      notes.value = notes.value
+        .replace(text, '')
+        .replace(origTxt, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
     }
   }
 
@@ -170,21 +292,21 @@ const TC = (() => {
       }
     });
     const notes = document.getElementById('f-notes');
-    // Clear only the T&C lines, keep anything manually typed before them
-    // Simple approach: just clear checkboxes, user manages notes field
     if (notes) notes.value = '';
   }
 
-  // Reset checkboxes when the PO modal is opened fresh
+  // Reset checkboxes + edits when the PO modal is opened fresh
   function reset() {
     _rendered = false;
+    // Clear all pending edits
+    Object.keys(_edits).forEach(k => delete _edits[k]);
     const panel = document.getElementById('tc-panel');
     const btn   = document.getElementById('tc-toggle-btn');
     if (panel) panel.style.display = 'none';
     if (btn)   btn.textContent = '＋ Select from library';
   }
 
-  return { toggle, onCheck, selectAll, clearAll, reset };
+  return { toggle, onCheck, selectAll, clearAll, reset, toggleEdit, _onEditInput, applyEdit, resetEdit };
 })();
 
 window.TC = TC;
