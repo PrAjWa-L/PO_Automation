@@ -95,32 +95,23 @@
             <option value="">— Select person —</option>
           </select>
         </div>
+
         <div class="fg">
           <label>Approved By</label>
           <select id="f-approvedby" data-team="approvers">
             <option>Pending</option>
           </select>
         </div>
-        
+
         <div class="fg">
           <label>Expected Delivery Date</label>
           <input type="date" id="f-delivery">
         </div>
 
         <div class="fg">
-          <label>Payment Terms</label>
-          <select id="f-payterms" onchange="const o=document.getElementById('f-payterms-other');o.style.display=this.value==='Other'?'block':'none';if(this.value!=='Other')o.value='';">
-            <option>Net 30</option>
-            <option>Net 45</option>
-            <option>Net 60</option>
-            <option>100% Advance</option>
-            <option>50% Advance, 50% on Delivery</option>
-            <option>Against Delivery</option>
-            <option value="Other">Other…</option>
-          </select>
-          <input type="text" id="f-payterms-other"
-                 placeholder="Enter custom payment terms"
-                 style="display:none;margin-top:6px;">
+          <label>Term</label>
+          <input type="text" id="f-payterms"
+                 placeholder="e.g. 4–6 weeks from date of PO">
         </div>
 
         <div class="fg">
@@ -160,7 +151,6 @@
             <tr>
               <th style="min-width:160px;">Item Name</th>
               <th style="min-width:90px;">HSN Code</th>
-              <th style="min-width:110px;">Dept</th>
               <th style="min-width:65px;">Qty</th>
               <th style="min-width:100px;">MRP (₹)</th>
               <th style="min-width:105px;">Unit Price *</th>
@@ -218,7 +208,7 @@
         </div>
       </div>
 
-{# ── Terms & Conditions Picker ── #}
+      {# ── Terms & Conditions Picker ── #}
       <div style="margin-top:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <label style="margin:0;">Terms &amp; Conditions</label>

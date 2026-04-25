@@ -71,7 +71,6 @@ const PO = (() => {
           <tr>
             <th>PO #</th>
             <th>Vendor</th>
-            <th>Dept</th>
             <th>Created By</th>
             <th>PO Date</th>
             <th>Grand Total</th>
@@ -169,14 +168,7 @@ const PO = (() => {
 
     // Payment terms — use partial/substring match so "net 30 days" still hits "Net 30"
     const payterms = document.getElementById('f-payterms');
-    if (payterms && q.payment_terms) {
-      const qt = q.payment_terms.toLowerCase().trim();
-      const opt = Array.from(payterms.options).find(o => {
-        const ot = o.text.toLowerCase().trim();
-        return ot === qt || ot.startsWith(qt) || qt.startsWith(ot);
-      });
-      if (opt) payterms.value = opt.value;
-    }
+    if (payterms && q.payment_terms) payterms.value = q.payment_terms;
 
     // Status — start as Draft so the PO goes through the normal workflow
     const status = document.getElementById('f-status');
@@ -270,16 +262,7 @@ const PO = (() => {
 
     // Payment terms
     const payterms = document.getElementById('f-payterms');
-    if (payterms && po.payment_terms) {
-      const stdTerms = ['Net 30','Net 45','Net 60','100% Advance','50% Advance, 50% on Delivery','Against Delivery'];
-      if (stdTerms.includes(po.payment_terms)) {
-        payterms.value = po.payment_terms;
-      } else {
-        payterms.value = 'Other';
-        const otherBox = document.getElementById('f-payterms-other');
-        if (otherBox) { otherBox.style.display = 'block'; otherBox.value = po.payment_terms; }
-      }
-    }
+    if (payterms && po.payment_terms) payterms.value = po.payment_terms;
 
     // Order type radio
     const orderTypeVal = po.order_type || 'Purchase Order';
@@ -396,14 +379,6 @@ const PO = (() => {
     recalc();
   }
 
-   function onPayTermsChange() {
-    const sel   = document.getElementById('f-payterms');
-    const other = document.getElementById('f-payterms-other');
-    if (!other) return;
-    other.style.display = sel.value === 'Other' ? 'block' : 'none';
-    if (sel.value !== 'Other') other.value = '';
-  }
-
     function onVendorChange() {
     const id = document.getElementById('f-vendor')?.value;
     const v  = id && typeof Vendors !== 'undefined' ? Vendors.getById(id) : null;
@@ -483,12 +458,6 @@ const PO = (() => {
                    oninput="PO._updateLI(${i},'name',this.value)"></td>
         <td><input value="${Utils.esc(it.hsn)}"  placeholder="HSN"
                    oninput="PO._updateLI(${i},'hsn',this.value)"></td>
-        <td>
-          <select onchange="PO._updateLI(${i},'dept',this.value)">
-            ${['IT','Maintenance','Housekeeping','Accounts','Pharmacy'].map(d =>
-              `<option ${d === it.dept ? 'selected' : ''}>${d}</option>`).join('')}
-          </select>
-        </td>
         <td><input type="number" min="1" value="${it.qty}"
                    oninput="PO._updateLI(${i},'qty',+this.value||1)"></td>
         <td><input type="number" min="0" value="${it.mrp}"
@@ -603,9 +572,7 @@ const PO = (() => {
       created_by:    _val('f-createdby'),
       approved_by:   document.getElementById('f-approvedby')?.value || '',
       delivery_date: _val('f-delivery') || null,
-      payment_terms: document.getElementById('f-payterms').value === 'Other'
-      ? document.getElementById('f-payterms-other').value.trim()
-      : document.getElementById('f-payterms').value,
+      payment_terms: document.getElementById('f-payterms')?.value.trim() || '',
       status:        forcedStatus || document.getElementById('f-status')?.value || 'Draft',
       order_type:    document.querySelector('input[name="order-type"]:checked')?.value || 'Purchase Order',
       tds_pct:       +(document.getElementById('f-tds')?.value || 0),
@@ -1002,7 +969,7 @@ const PO = (() => {
 
   return {
     load, filter, search,
-    openNew, openEdit, openFromQuotation, onVendorChange, onOrderTypeChange, onPayTermsChange,
+    openNew, openEdit, openFromQuotation, onVendorChange, onOrderTypeChange,
     addLI, removeLI, _updateLI, recalc,
     save,
     view, approveCurrent, rejectCurrent, _confirmReject, changeStatus,

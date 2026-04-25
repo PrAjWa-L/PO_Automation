@@ -1,5 +1,5 @@
 /**
- * pdf_generator.js — jsPDF-based PO PDF export (redesigned)
+ * pdf_generator.js — jsPDF-based PO PDF export
  * Depends on: jsPDF + jsPDF-autotable CDN scripts, utils.js
  * Exposes: window.PDFGen
  */
@@ -7,34 +7,111 @@
 const PDFGen = (() => {
 
   const ORG = {
-    name:       'CUTIS\u2122 Academy of Cutaneous Sciences',
-    affiliation:'Affiliated to Rajiv Gandhi University of Health Sciences, Karnataka (RGUHS)',
-    addr:       '5/1, 4th Main, MRCR Layout, Vijayanagar, (Near Veeresh Theatre),\nMagadi Main Road, BENGALURU - 560 040',
-    tel:        '080 4115 9049 / 51, 080 2340 1200 / 300',
-    mob:        '8296110020',
-    email:      'askcutis@gmail.com',
-    web:        'www.cutis.org.in',
-    signer:     'COO',
-    director1:  { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Medical Director' },
-    director2:  { name: 'Dr. Manjula C.N.',       qual: 'M.D. (OBG)',   title: 'Chief Executive Officer' },
-    logoUrl:    '/static/imgages/logo.png',
+    name:        'CUTIS\u2122 Academy of Cutaneous Sciences',
+    affiliation: 'Affiliated to Rajiv Gandhi University of Health Sciences, Karnataka (RGUHS)',
+    addr:        '5/1, 4th Main, MRCR Layout, Vijayanagar, (Near Veeresh Theatre), Magadi Main Road, BENGALURU - 560 040',
+    gstin:       '29AAHFC6018K1Z8',
+    tel:         '080 4115 9049 / 51, 080 2340 1200 / 300',
+    mob:         '8296110020',
+    email:       'askcutis@gmail.com',
+    web:         'www.cutis.org.in',
+    signer:      'COO',
+    director1:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Medical Director' },
+    director2:   { name: 'Dr. Manjula C.N.',       qual: 'M.D. (OBG)',   title: 'Chief Executive Officer' },
+    logoUrl:     '/static/images/logo.png',
   };
 
-  // Colours
   const C = {
-    blue:     [0,   128, 128],   // teal — matches letterhead
-    darkBlue: [0,   100, 100],   // darker teal
-    black:    [17,  24,  39],
-    grey:     [107,114, 128],
-    lightGrey:[209,213, 219],
-    bgLight:  [232,245, 245],   // teal-tinted light background
-    bgRow:    [249,250, 251],
-    white:    [255,255, 255],
+    teal:      [0,   128, 128],
+    darkTeal:  [0,   100, 100],
+    red:       [180, 0,   0  ],
+    black:     [17,  24,  39 ],
+    grey:      [107, 114, 128],
+    lightGrey: [209, 213, 219],
+    bgLight:   [232, 245, 245],
+    bgRow:     [249, 250, 251],
+    white:     [255, 255, 255],
   };
 
-  function _lh(doc, text, maxW, size) {
-    const lines = doc.splitTextToSize(String(text || ''), maxW);
-    return lines.length * (size * 0.352778 + 1.2);   // approx mm per line
+  const M        = 14;
+  const PW       = 210;
+  const CW       = PW - M * 2;
+  const PAGE_H   = 297;
+  const FOOTER_H = 14;
+
+  function _drawLetterhead(doc, y) {
+    doc.setFillColor(...C.teal);
+    doc.rect(M, y, CW, 2, 'F');
+    y += 5;
+
+    try { doc.addImage(ORG.logoUrl, 'PNG', M, y, 32, 11); } catch(e) {}
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...C.darkTeal);
+    doc.text(ORG.name, PW / 2, y + 5, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(ORG.affiliation, PW / 2, y + 9.5, { align: 'center' });
+    const aLines = doc.splitTextToSize(ORG.addr, CW * 0.55);
+    aLines.forEach((l, i) => doc.text(l, PW / 2, y + 13.5 + i * 3.5, { align: 'center' }));
+
+    const rx = PW - M;
+    doc.setFont('helvetica', 'bold');   doc.setFontSize(8.5); doc.setTextColor(...C.darkTeal);
+    doc.text(ORG.director1.name, rx, y + 3,    { align: 'right' });
+    doc.setFont('helvetica', 'bold');   doc.setFontSize(7.5); doc.setTextColor(...C.red);
+    doc.text(ORG.director1.qual, rx, y + 7,    { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);   doc.setTextColor(80, 80, 80);
+    doc.text(ORG.director1.title, rx, y + 10.5, { align: 'right' });
+    doc.setFont('helvetica', 'bold');   doc.setFontSize(8.5); doc.setTextColor(...C.darkTeal);
+    doc.text(ORG.director2.name, rx, y + 16,   { align: 'right' });
+    doc.setFont('helvetica', 'bold');   doc.setFontSize(7.5); doc.setTextColor(...C.red);
+    doc.text(ORG.director2.qual, rx, y + 20,   { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);   doc.setTextColor(80, 80, 80);
+    doc.text(ORG.director2.title, rx, y + 23.5, { align: 'right' });
+
+    y += 28;
+    doc.setDrawColor(...C.red);
+    doc.setLineWidth(0.6);
+    doc.line(M, y, PW - M, y);
+    return y + 4;
+  }
+
+  function _drawFooter(doc) {
+    const fy = PAGE_H - 10;
+    doc.setDrawColor(...C.teal);
+    doc.setLineWidth(0.4);
+    doc.line(M, fy - 3, PW - M, fy - 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(
+      `Tel: ${ORG.tel}  |  Mob: ${ORG.mob}  |  Email: ${ORG.email}  |  ${ORG.web}`,
+      PW / 2, fy, { align: 'center' }
+    );
+  }
+
+  function _checkPage(doc, y, needed) {
+    if (y + needed > PAGE_H - FOOTER_H - 5) {
+      _drawFooter(doc);
+      doc.addPage();
+      y = _drawLetterhead(doc, M);
+      y += 4;
+    }
+    return y;
+  }
+
+  function _numberTC(text) {
+    if (!text) return text;
+    let counter = 1;
+    return text.split('\n').map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+      if (/^\d+[\.\)]/.test(trimmed)) return trimmed;
+      return `${counter++}. ${trimmed}`;
+    }).filter(l => l !== null).join('\n');
   }
 
   function generate(po) {
@@ -43,431 +120,222 @@ const PDFGen = (() => {
       return;
     }
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const M  = 14;
-    const PW = 210;
-    const CW = PW - M * 2;   // 182 mm
-    let y = M;
-
+    const doc   = new jsPDF({ unit: 'mm', format: 'a4' });
     const intra = (po.vendor_gst || '').toUpperCase().startsWith('29');
 
-/* ══════════════════════════════════════════════════════════
-       1. LETTERHEAD
-    ══════════════════════════════════════════════════════════ */
-    // Teal top bar (matches the letterhead colour)
-    doc.setFillColor(0, 128, 128);
-    doc.rect(M, y, CW, 2, 'F');
-    y += 5;
+    let y = _drawLetterhead(doc, M);
 
-    // Logo (left)
-    try {
-      doc.addImage(ORG.logoUrl, 'PNG', M, y, 32, 11);
-    } catch(e) {}
-
-    // Centre block — name + affiliation + address
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(0, 100, 100);   // teal
-    doc.text(ORG.name, PW / 2, y + 5, { align: 'center' });
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(80, 80, 80);
-    doc.text(ORG.affiliation, PW / 2, y + 9.5, { align: 'center' });
-
-    const headerAddrLines = ORG.addr.split('\n');
-    headerAddrLines.forEach((line, i) => {
-      doc.text(line, PW / 2, y + 13.5 + i * 3.8, { align: 'center' });
-    });
-
-    // Right block — directors
-    const rx = PW - M;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(0, 100, 100);
-    doc.text(ORG.director1.name, rx, y + 3, { align: 'right' });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(180, 0, 0);   // dark red for qualifications
-    doc.text(ORG.director1.qual, rx, y + 7, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(80, 80, 80);
-    doc.text(ORG.director1.title, rx, y + 10.5, { align: 'right' });
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(0, 100, 100);
-    doc.text(ORG.director2.name, rx, y + 16, { align: 'right' });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(180, 0, 0);
-    doc.text(ORG.director2.qual, rx, y + 20, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(80, 80, 80);
-    doc.text(ORG.director2.title, rx, y + 23.5, { align: 'right' });
-
-    y += 28;
-
-    // Bottom divider (dark red line like the letterhead)
-    doc.setDrawColor(180, 0, 0);
-    doc.setLineWidth(0.6);
-    doc.line(M, y, PW - M, y);
-    y += 6;
-
-    // ── ORDER TYPE LABEL (replaces old blue header bar) ──
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...C.black);
-    const orderLabel = (po.order_type || 'Purchase Order').toUpperCase();
-    doc.text(orderLabel, M, y + 5);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...C.grey);
-    doc.text(po.id || 'PO-DRAFT', PW - M, y + 2, { align: 'right' });
+    // Order label
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...C.black);
+    doc.text((po.order_type || 'Purchase Order').toUpperCase(), M, y + 5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...C.grey);
+    doc.text(po.id || 'PO-DRAFT',                PW - M, y + 2, { align: 'right' });
     doc.text('Status: ' + (po.status || 'Draft'), PW - M, y + 7, { align: 'right' });
     y += 14;
 
-    /* ══════════════════════════════════════════════════════════
-       2. VENDOR block (full width)
-    ══════════════════════════════════════════════════════════ */
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setTextColor(...C.grey);
-    doc.text('VENDOR', M, y);
-    y += 5;
-
-    const vname = po.vendor_name || '—';
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...C.black);
-    const vnLines = doc.splitTextToSize(vname, CW);
-    doc.text(vnLines, M, y);
-    y += vnLines.length * 5 + 1.5;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.grey);
-    if (po.vendor_addr) {
-      const vaLines = doc.splitTextToSize(po.vendor_addr, CW);
-      doc.text(vaLines, M, y);
-      y += vaLines.length * 4 + 1;
-    }
-    if (po.vendor_gst) {
-      doc.text('GSTIN: ' + po.vendor_gst, M, y); y += 4;
-    }
-    if (po.vendor_bank) {
-      const vbLines = doc.splitTextToSize('Bank: ' + po.vendor_bank, CW);
-      doc.text(vbLines, M, y);
-      y += vbLines.length * 4 + 1;
-    }
-
+    // Vendor
+    y = _checkPage(doc, y, 24);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...C.grey);
+    doc.text('VENDOR', M, y); y += 5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...C.black);
+    const vnL = doc.splitTextToSize(po.vendor_name || '—', CW);
+    doc.text(vnL, M, y); y += vnL.length * 5 + 1.5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...C.grey);
+    if (po.vendor_addr) { const l = doc.splitTextToSize(po.vendor_addr, CW); doc.text(l, M, y); y += l.length * 4 + 1; }
+    if (po.vendor_gst)  { doc.text('GSTIN: ' + po.vendor_gst, M, y); y += 4; }
+    if (po.vendor_bank) { const l = doc.splitTextToSize('Bank: ' + po.vendor_bank, CW); doc.text(l, M, y); y += l.length * 4 + 1; }
     y += 4;
 
-    /* ══════════════════════════════════════════════════════════
-       3. SUPPLIER CODE / PO META row  (blue-labelled grid)
-    ══════════════════════════════════════════════════════════ */
-    doc.setDrawColor(...C.lightGrey);
-    doc.setLineWidth(0.3);
-    doc.line(M, y, PW - M, y);
-    y += 5;
+    // Meta grid
+    y = _checkPage(doc, y, 18);
+    doc.setDrawColor(...C.lightGrey); doc.setLineWidth(0.3);
+    doc.line(M, y, PW - M, y); y += 5;
 
-    const metaFields = [
-      ['Supplier Code', po.vendor_id    || '—'],
-      ['PO Date',       po.po_date      || '—'],
-      ['PO Number',     po.id           || '—'],
-      ['Department',    po.department   || '—'],
-      ['Payment Terms', po.payment_terms|| '—'],
-      ['Approved By',   po.approved_by  || 'Pending'],
+    const meta = [
+      ['Supplier Code', po.vendor_id || '—'],
+      ['PO Date',       po.po_date   || '—'],
+      ['PO Number',     po.id        || '—'],
+      ['Department',    po.department || '—'],
+      ['Term', po.payment_terms || '—'],
+      ['Approved By',   po.approved_by || 'Pending'],
     ];
-    if (po.delivery_date) {
-      metaFields.splice(3, 0, ['Delivery Date', po.delivery_date]);
-    }
+    if (po.delivery_date) meta.splice(3, 0, ['Delivery Date', po.delivery_date]);
+    const mCols = Math.min(meta.length, 6);
+    const mW    = CW / mCols;
 
-    const mCols   = Math.min(metaFields.length, 6);
-    const mW      = CW / mCols;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.5);
-    doc.setTextColor(...C.grey);
-    metaFields.slice(0, mCols).forEach((f, i) => doc.text(f[0], M + i * mW, y));
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...C.grey);
+    meta.slice(0, mCols).forEach((f, i) => doc.text(f[0], M + i * mW, y));
     y += 4.5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...C.black);
-    let metaH = 0;
-    metaFields.slice(0, mCols).forEach((f, i) => {
-      const lines = doc.splitTextToSize(String(f[1]), mW - 2);
-      doc.text(lines, M + i * mW, y);
-      metaH = Math.max(metaH, lines.length * 4.5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...C.black);
+    let mH = 0;
+    meta.slice(0, mCols).forEach((f, i) => {
+      const ls = doc.splitTextToSize(String(f[1]), mW - 2);
+      doc.text(ls, M + i * mW, y);
+      mH = Math.max(mH, ls.length * 4.5);
     });
-    y += metaH + 5;
+    y += mH + 5;
+    doc.setDrawColor(...C.lightGrey); doc.line(M, y, PW - M, y); y += 5;
 
-    doc.setDrawColor(...C.lightGrey);
-    doc.line(M, y, PW - M, y);
-    y += 5;
+    // Bill To / Ship To
+    y = _checkPage(doc, y, 36);
+    const halfW   = CW / 2;
+    const billLines = [ORG.name, ORG.addr, 'GSTIN: ' + ORG.gstin, 'Tel: ' + ORG.tel, 'Email: ' + ORG.email];
 
-    /* ══════════════════════════════════════════════════════════
-       4. BILL TO / SHIP TO  (teal header cells)
-    ══════════════════════════════════════════════════════════ */
-    const halfW = CW / 2;
-    const bAddr = ORG.name + '\n' + ORG.addr + '\nGSTIN: 29AAHFC6018K1Z8' +
-                  '\nContact: ' + ORG.tel + '\nEmail: ' + ORG.email;
-
-    // Draw teal header cells
-    doc.setFillColor(...C.blue);
-    doc.rect(M,             y, halfW - 0.5, 7, 'F');
+    doc.setFillColor(...C.teal);
+    doc.rect(M, y, halfW - 0.5, 7, 'F');
     doc.rect(M + halfW + 0.5, y, halfW - 0.5, 7, 'F');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...C.white);
-    doc.text('Bill To:', M + 3, y + 4.8);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...C.white);
+    doc.text('Bill To:', M + 3,           y + 4.8);
     doc.text('Ship To:', M + halfW + 3.5, y + 4.8);
     y += 9;
 
-    // Body rows
-    const addrBlockLines = bAddr.split('\n');
-    const addrBlockH = addrBlockLines.length * 4 + 4;
+    let totalLines = 0;
+    billLines.forEach(l => { totalLines += doc.splitTextToSize(l, halfW - 10).length; });
+    const blockH = totalLines * 3.8 + 6;
 
     doc.setFillColor(...C.bgLight);
-    doc.rect(M,             y, halfW - 0.5, addrBlockH, 'F');
-    doc.rect(M + halfW + 0.5, y, halfW - 0.5, addrBlockH, 'F');
+    doc.rect(M, y, halfW - 0.5, blockH, 'F');
+    doc.rect(M + halfW + 0.5, y, halfW - 0.5, blockH, 'F');
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...C.black);
-    doc.text(ORG.name, M + 3, y + 4.5);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.grey);
-    let ay = y + 8.5;
-    [ORG.addr, 'GSTIN: ' + ORG.gstin, 'Contact: ' + ORG.tel, 'Email: ' + ORG.email].forEach(line => {
-      const ls = doc.splitTextToSize(line, halfW - 7);
-      doc.text(ls, M + 3, ay);
-      ay += ls.length * 3.8;
+    [M + 3, M + halfW + 3.5].forEach(x => {
+      let by = y + 4;
+      billLines.forEach((line, idx) => {
+        const ls = doc.splitTextToSize(line, halfW - 10);
+        if (idx === 0) { doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...C.black); }
+        else           { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...C.grey); }
+        doc.text(ls, x, by);
+        by += ls.length * 3.8;
+      });
     });
 
-    // Ship to (same address for hospital)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...C.black);
-    doc.text(ORG.name, M + halfW + 3.5, y + 4.5);
+    doc.setDrawColor(...C.lightGrey); doc.setLineWidth(0.3);
+    doc.rect(M,               y - 9, halfW - 0.5, blockH + 9, 'S');
+    doc.rect(M + halfW + 0.5, y - 9, halfW - 0.5, blockH + 9, 'S');
+    y += blockH + 5;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.grey);
-    ay = y + 8.5;
-    [ORG.addr, 'GSTIN: ' + ORG.gstin, 'Contact: ' + ORG.tel, 'Email: ' + ORG.email].forEach(line => {
-      const ls = doc.splitTextToSize(line, halfW - 7);
-      doc.text(ls, M + halfW + 3.5, ay);
-      ay += ls.length * 3.8;
-    });
+    // Line items table
+    y = _checkPage(doc, y, 30);
+    const heads = intra
+      ? [['#', 'Product Name', 'HSN', 'Qty', 'Unit', 'Rate', 'Tax%', 'CGST', 'SGST', 'Total']]
+      : [['#', 'Product Name', 'HSN', 'Qty', 'Unit', 'Rate', 'Tax%', 'Total']];
 
-    // Border around both cells
-    doc.setDrawColor(...C.lightGrey);
-    doc.setLineWidth(0.3);
-    doc.rect(M,             y - 9, halfW - 0.5, addrBlockH + 9, 'S');
-    doc.rect(M + halfW + 0.5, y - 9, halfW - 0.5, addrBlockH + 9, 'S');
-
-    y += addrBlockH + 5;
-
-    /* ══════════════════════════════════════════════════════════
-       5. LINE ITEMS TABLE
-    ══════════════════════════════════════════════════════════ */
-    const heads = [[
-      '#', 'Code', 'Product Name', 'HSN Code',
-      'Qty', 'Unit', 'Rate', 'Tax',
-      intra ? 'CGST' : '',
-      intra ? 'SGST' : '',
-      'Total',
-    ].filter((h, i) => !(h === '' && !intra) && (intra || (i !== 8 && i !== 9)))];
-
-    const rows = (po.line_items || []).map((li, idx) => {
-      const qty    = parseFloat(li.qty        || 1);
-      const price  = parseFloat(li.unit_price || 0);
+    const tableRows = (po.line_items || []).map((li, idx) => {
+      const qty    = parseFloat(li.qty          || 1);
+      const price  = parseFloat(li.unit_price   || 0);
       const disc   = parseFloat(li.discount_pct || 0);
-      const gstPct = parseFloat(li.gst_pct    || 18);
+      const gstPct = parseFloat(li.gst_pct      || 18);
       const base   = qty * price * (1 - disc / 100);
-      const cgst   = li.cgst  != null ? parseFloat(li.cgst)  : base * gstPct / 200;
-      const sgst   = li.sgst  != null ? parseFloat(li.sgst)  : base * gstPct / 200;
-      const igst   = li.igst  != null ? parseFloat(li.igst)  : base * gstPct / 100;
+      const cgst   = li.cgst       != null ? parseFloat(li.cgst)      : base * gstPct / 200;
+      const sgst   = li.sgst       != null ? parseFloat(li.sgst)      : base * gstPct / 200;
+      const igst   = li.igst       != null ? parseFloat(li.igst)      : base * gstPct / 100;
       const total  = li.line_total != null ? parseFloat(li.line_total) : base + (intra ? cgst + sgst : igst);
-
-      const row = [
-        idx + 1,
-        li.id || '',
-        li.item_name   || '—',
-        li.hsn_code    || '—',
-        qty % 1 === 0 ? qty : qty.toFixed(2),
-        'nos',
-        price.toFixed(2),
-        gstPct + '%',
-      ];
-      if (intra) {
-        row.push(cgst.toFixed(2), sgst.toFixed(2));
-      }
+      const row = [idx + 1, li.item_name || '—', li.hsn_code || '—',
+                   qty % 1 === 0 ? qty : qty.toFixed(2), 'nos',
+                   price.toFixed(2), gstPct + '%'];
+      if (intra) row.push(cgst.toFixed(2), sgst.toFixed(2));
       row.push(total.toFixed(2));
       return row;
     });
 
-    // Column widths
     const cws = intra
-      ? [10, 16, 38, 22, 18, 12, 18, 10, 16, 16, 16]
-      : [10, 16, 52, 24, 18, 12, 24, 12,             24];
+      ? [8, 52, 18, 14, 10, 20, 12, 16, 16, 16]
+      : [8, 70, 20, 14, 10, 24, 12, 24];
 
     const colStyles = {};
-    cws.forEach((w, i) => {
-      colStyles[i] = { cellWidth: w, halign: [0,1,2,3].includes(i) ? 'center' : 'right' };
-    });
-    colStyles[2] = { cellWidth: cws[2], halign: 'left' };
+    cws.forEach((w, i) => { colStyles[i] = { cellWidth: w, halign: 'right' }; });
+    colStyles[0] = { cellWidth: cws[0], halign: 'center' };
+    colStyles[1] = { cellWidth: cws[1], halign: 'left', overflow: 'linebreak' };
+    colStyles[2] = { cellWidth: cws[2], halign: 'center' };
 
     doc.autoTable({
       head: heads,
-      body: rows,
+      body: tableRows,
       startY: y,
       margin: { left: M, right: M },
       tableWidth: CW,
-      styles: {
-        fontSize: 8,
-        cellPadding: 3,
-        textColor: C.black,
-        overflow: 'linebreak',
-        valign: 'middle',
-      },
-      headStyles: {
-        fillColor: C.blue,        // teal table header
-        textColor: C.white,
-        fontStyle: 'bold',
-        fontSize: 7.5,
-        halign: 'center',
-      },
+      styles: { fontSize: 8, cellPadding: 3, textColor: C.black, overflow: 'linebreak', valign: 'middle' },
+      headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 8, halign: 'center' },
       alternateRowStyles: { fillColor: C.bgRow },
       columnStyles: colStyles,
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) _drawLetterhead(doc, M);
+        _drawFooter(doc);
+      },
     });
     y = doc.lastAutoTable.finalY + 6;
 
-    /* ══════════════════════════════════════════════════════════
-       6. TOTALS BOX  (right-aligned)
-    ══════════════════════════════════════════════════════════ */
-    const boxW  = 80;
-    const boxX  = PW - M - boxW;
-    const lineH = 6;
-
-    const totalsRows = [
-      ['Total',    po.subtotal  || 0],
+    // Totals
+    y = _checkPage(doc, y, 40);
+    const boxW = 80;
+    const boxX = PW - M - boxW;
+    const lH   = 6;
+    const totRows = [
+      ['Subtotal',   po.subtotal  || 0],
       ['Discounts', -(po.discount || 0)],
-      [intra ? 'GST (CGST + SGST)' : 'GST (IGST)', po.gst_total || 0],
+      [intra ? 'GST (CGST+SGST)' : 'GST (IGST)', po.gst_total || 0],
     ];
-    if (po.order_type === 'Work Order' && parseFloat(po.tds_amt || 0) > 0) {
-      totalsRows.push([`TDS (${po.tds_pct || 0}%)`, -(po.tds_amt || 0)]);
-    }
+    if (po.order_type === 'Work Order' && parseFloat(po.tds_amt || 0) > 0)
+      totRows.push([`TDS (${po.tds_pct || 0}%)`, -(po.tds_amt || 0)]);
 
-    const boxH = totalsRows.length * lineH + 3;
     doc.setFillColor(...C.bgLight);
-    doc.roundedRect(boxX - 4, y - 2, boxW + 8, boxH, 1.5, 1.5, 'F');
-    doc.setDrawColor(...C.lightGrey);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(boxX - 4, y - 2, boxW + 8, boxH, 1.5, 1.5, 'S');
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    totalsRows.forEach(([label, val]) => {
-      doc.setTextColor(...C.grey);
-      doc.text(label, boxX, y + 3.5);
+    doc.roundedRect(boxX - 4, y - 2, boxW + 8, totRows.length * lH + 3, 1.5, 1.5, 'F');
+    doc.setDrawColor(...C.lightGrey); doc.setLineWidth(0.3);
+    doc.roundedRect(boxX - 4, y - 2, boxW + 8, totRows.length * lH + 3, 1.5, 1.5, 'S');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    totRows.forEach(([label, val]) => {
+      doc.setTextColor(...C.grey);  doc.text(label, boxX, y + 3.5);
       doc.setTextColor(...C.black);
       const v = parseFloat(val);
-      doc.text((v < 0 ? '-' : '') + 'Rs.' + Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), PW - M - 2, y + 3.5, { align: 'right' });
-      y += lineH;
+      doc.text((v < 0 ? '-' : '') + 'Rs.' + Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), PW - M - 2, y + 3.5, { align: 'right' });
+      y += lH;
     });
-
-    // Divider + Grand Total
     y += 2;
-    doc.setDrawColor(...C.blue);   // teal divider
-    doc.setLineWidth(0.5);
-    doc.line(boxX - 4, y, PW - M + 4, y);
-    y += 5;
-
+    doc.setDrawColor(...C.teal); doc.setLineWidth(0.5);
+    doc.line(boxX - 4, y, PW - M + 4, y); y += 5;
     doc.setFillColor(...C.bgLight);
     doc.roundedRect(boxX - 4, y - 3, boxW + 8, 10, 1.5, 1.5, 'F');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...C.black);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...C.black);
     doc.text('Grand Total', boxX, y + 4);
-    doc.setTextColor(...C.blue);   // teal grand total amount
+    doc.setTextColor(...C.teal);
     const gt = parseFloat(po.grand_total || 0);
     doc.text('Rs.' + gt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), PW - M - 2, y + 4, { align: 'right' });
     y += 14;
 
-    /* ══════════════════════════════════════════════════════════
-       7. NOTES + TERMS & CONDITIONS
-    ══════════════════════════════════════════════════════════ */
-    const hasNotes = po.notes && po.notes.trim();
-    if (hasNotes) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.setTextColor(...C.grey);
-      doc.text('NOTES / TERMS & CONDITIONS', M, y);
-      y += 5;
+    // Notes / T&C
+    if (po.notes && po.notes.trim()) {
+      y = _checkPage(doc, y, 20);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...C.grey);
+      doc.text('NOTES / TERMS & CONDITIONS', M, y); y += 6;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(...C.black);
-      const noteLines = doc.splitTextToSize(po.notes, CW);
-      doc.text(noteLines, M, y, { align: 'left' });
-      y += noteLines.length * 4.2 + 4;
+      const numbered = _numberTC(po.notes);
+      numbered.split('\n').forEach(line => {
+        if (!line.trim()) { y += 2; return; }
+        const ls = doc.splitTextToSize(line, CW);
+        y = _checkPage(doc, y, ls.length * 4.5);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...C.black);
+        doc.text(ls, M, y);
+        y += ls.length * 4.5;
+      });
+      y += 4;
     }
 
-    /* ══════════════════════════════════════════════════════════
-       8. SIGNATURE BOX  (right side, teal header)
-    ══════════════════════════════════════════════════════════ */
-    const sigX = M;
+    // Signature
+    y = _checkPage(doc, y, 36);
     const sigW = 75;
     const sigY = y;
+    doc.setFillColor(...C.teal);
+    doc.roundedRect(M, sigY, sigW, 8, 1.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...C.white);
+    doc.text('For CUTIS\u2122 Academy', M + sigW / 2, sigY + 5.5, { align: 'center' });
+    doc.setDrawColor(...C.lightGrey); doc.setLineWidth(0.3);
+    doc.rect(M, sigY + 8, sigW, 22, 'S');
+    doc.line(M + 5, sigY + 23, M + sigW - 5, sigY + 23);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...C.grey);
+    doc.text('Authorised Signatory', M + sigW / 2, sigY + 27, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...C.black);
+    doc.text(ORG.signer, M + sigW / 2, sigY + 21, { align: 'center' });
 
-    // Teal header
-    doc.setFillColor(...C.blue);   // teal signature header
-    doc.roundedRect(sigX, sigY, sigW, 8, 1.5, 1.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...C.white);
-    doc.text('For ' + ORG.name.split('—')[0].trim(), sigX + sigW / 2, sigY + 5.5, { align: 'center' });
-
-    // Signature area
-    doc.setDrawColor(...C.lightGrey);
-    doc.setLineWidth(0.3);
-    doc.rect(sigX, sigY + 8, sigW, 22, 'S');
-    doc.setDrawColor(...C.lightGrey);
-    doc.line(sigX + 5, sigY + 23, sigX + sigW - 5, sigY + 23);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.grey);
-    doc.text('Authorised Signatory', sigX + sigW / 2, sigY + 27, { align: 'center' });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...C.black);
-    doc.text(ORG.signer, sigX + sigW / 2, sigY + 22, { align: 'center' });
-
-    /* ══════════════════════════════════════════════════════════
-       9. FOOTER
-    ══════════════════════════════════════════════════════════ */
-    const footY = 287;
-    doc.setFillColor(0, 128, 128);
-    doc.rect(M, footY - 5, CW, 0.5, 'F');
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(80, 80, 80);
-    doc.text(
-      `Tel: ${ORG.tel}  Mob: ${ORG.mob}  E Mail: ${ORG.email} : ${ORG.web}`,
-      PW / 2, footY, { align: 'center' }
-    );
-
+    _drawFooter(doc);
     doc.save((po.id || 'PO') + '.pdf');
   }
 
