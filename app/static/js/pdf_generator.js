@@ -7,13 +7,17 @@
 const PDFGen = (() => {
 
   const ORG = {
-    name:   'CUTIS Hospital — Academy of Cutaneous Sciences',
-    addr:   '5/1, 4th Main, MRCR Layout, Vijayanagar, Bengaluru-560040',
-    gstin:  '29AAHFC6018K1Z8',
-    email:  'care@cutis.org.in',
-    web:    'www.cutis.org.in',
-    tel:    '080-23401200',
-    signer: 'COO',
+    name:       'CUTIS\u2122 Academy of Cutaneous Sciences',
+    affiliation:'Affiliated to Rajiv Gandhi University of Health Sciences, Karnataka (RGUHS)',
+    addr:       '5/1, 4th Main, MRCR Layout, Vijayanagar, (Near Veeresh Theatre),\nMagadi Main Road, BENGALURU - 560 040',
+    tel:        '080 4115 9049 / 51, 080 2340 1200 / 300',
+    mob:        '8296110020',
+    email:      'askcutis@gmail.com',
+    web:        'www.cutis.org.in',
+    signer:     'COO',
+    director1:  { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Medical Director' },
+    director2:  { name: 'Dr. Manjula C.N.',       qual: 'M.D. (OBG)',   title: 'Chief Executive Officer' },
+    logoUrl:    '/static/imgages/logo.png',
   };
 
   // Colours
@@ -47,23 +51,83 @@ const PDFGen = (() => {
 
     const intra = (po.vendor_gst || '').toUpperCase().startsWith('29');
 
-    /* ══════════════════════════════════════════════════════════
-       1. HEADER BAR — blue background, PO title + PO number
+/* ══════════════════════════════════════════════════════════
+       1. LETTERHEAD
     ══════════════════════════════════════════════════════════ */
-    doc.setFillColor(...C.blue);
-    doc.roundedRect(M, y, CW, 16, 2, 2, 'F');
+    // Teal top bar (matches the letterhead colour)
+    doc.setFillColor(0, 128, 128);
+    doc.rect(M, y, CW, 2, 'F');
+    y += 5;
 
+    // Logo (left)
+    try {
+      doc.addImage(ORG.logoUrl, 'PNG', M, y, 32, 11);
+    } catch(e) {}
+
+    // Centre block — name + affiliation + address
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(...C.white);
-    const orderLabel = (po.order_type || 'Purchase Order').toUpperCase();
-    doc.text(orderLabel, M + 5, y + 10.5);
+    doc.setFontSize(13);
+    doc.setTextColor(0, 100, 100);   // teal
+    doc.text(ORG.name, PW / 2, y + 5, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(ORG.affiliation, PW / 2, y + 9.5, { align: 'center' });
+
+    const headerAddrLines = ORG.addr.split('\n');
+    headerAddrLines.forEach((line, i) => {
+      doc.text(line, PW / 2, y + 13.5 + i * 3.8, { align: 'center' });
+    });
+
+    // Right block — directors
+    const rx = PW - M;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(0, 100, 100);
+    doc.text(ORG.director1.name, rx, y + 3, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(180, 0, 0);   // dark red for qualifications
+    doc.text(ORG.director1.qual, rx, y + 7, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(ORG.director1.title, rx, y + 10.5, { align: 'right' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(0, 100, 100);
+    doc.text(ORG.director2.name, rx, y + 16, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(180, 0, 0);
+    doc.text(ORG.director2.qual, rx, y + 20, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(ORG.director2.title, rx, y + 23.5, { align: 'right' });
+
+    y += 28;
+
+    // Bottom divider (dark red line like the letterhead)
+    doc.setDrawColor(180, 0, 0);
+    doc.setLineWidth(0.6);
+    doc.line(M, y, PW - M, y);
+    y += 6;
+
+    // ── ORDER TYPE LABEL (replaces old blue header bar) ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...C.black);
+    const orderLabel = (po.order_type || 'Purchase Order').toUpperCase();
+    doc.text(orderLabel, M, y + 5);
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(po.id || 'PO-DRAFT', PW - M - 3, y + 6.5,  { align: 'right' });
-    doc.text('Status: ' + (po.status || 'Draft'), PW - M - 3, y + 12, { align: 'right' });
-    y += 22;
+    doc.setTextColor(...C.grey);
+    doc.text(po.id || 'PO-DRAFT', PW - M, y + 2, { align: 'right' });
+    doc.text('Status: ' + (po.status || 'Draft'), PW - M, y + 7, { align: 'right' });
+    y += 14;
 
     /* ══════════════════════════════════════════════════════════
        2. BUYER | VENDOR  two-column block
@@ -89,7 +153,7 @@ const PDFGen = (() => {
     const addrLines = doc.splitTextToSize(addrLine, colLW);
     doc.text(addrLines, colL, yL);
     yL += addrLines.length * 4 + 1;
-    doc.text('GSTIN: ' + ORG.gstin, colL, yL);  yL += 4;
+    doc.text('GSTIN: 29AAHFC6018K1Z8', colL, yL);  yL += 4;
     doc.text('Tel: ' + ORG.tel + '  |  ' + ORG.email, colL, yL); yL += 4;
 
     // — Vendor (right) —
@@ -174,7 +238,7 @@ const PDFGen = (() => {
        4. BILL TO / SHIP TO  (blue header cells)
     ══════════════════════════════════════════════════════════ */
     const halfW = CW / 2;
-    const bAddr = ORG.name + '\n' + ORG.addr + '\nGSTIN: ' + ORG.gstin +
+    const bAddr = ORG.name + '\n' + ORG.addr + '\nGSTIN: 29AAHFC6018K1Z8' +
                   '\nContact: ' + ORG.tel + '\nEmail: ' + ORG.email;
 
     // Draw blue header cells
@@ -418,18 +482,18 @@ const PDFGen = (() => {
        9. FOOTER
     ══════════════════════════════════════════════════════════ */
     const footY = 287;
-    doc.setDrawColor(...C.lightGrey);
-    doc.setLineWidth(0.25);
-    doc.line(M, footY - 3, PW - M, footY - 3);
+    doc.setFillColor(0, 128, 128);
+    doc.rect(M, footY - 5, CW, 0.5, 'F');
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.setTextColor(...C.grey);
-    doc.text(ORG.name + '  |  ' + ORG.email + '  |  ' + ORG.web + '  |  Tel: ' + ORG.tel, PW / 2, footY, { align: 'center' });
-    doc.text('Computer-generated document. Valid only with authorised signature.', PW / 2, footY + 4, { align: 'center' });
+    doc.setTextColor(80, 80, 80);
+    doc.text(
+      `Tel: ${ORG.tel}  Mob: ${ORG.mob}  E Mail: ${ORG.email} : ${ORG.web}`,
+      PW / 2, footY, { align: 'center' }
+    );
 
     doc.save((po.id || 'PO') + '.pdf');
-    Utils.toastSuccess('PDF saved: ' + (po.id || 'PO') + '.pdf');
   }
 
   return { generate };
