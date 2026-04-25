@@ -337,7 +337,7 @@ def create_po():
         vendor_bank = data.get("vendor_bank", "").strip()
 
         if vendor_id:
-            v = db.session.get(Vendor, po.vendor_id) if po.vendor_id else None
+            v = db.session.get(Vendor, vendor_id)
             if v:
                 vendor_name = vendor_name or v.name
                 vendor_gst  = vendor_gst  or (v.gst  or "")
