@@ -26,21 +26,57 @@ VALID_MODES  = ["NEFT", "RTGS", "IMPS", "Cheque", "Cash", "UPI"]
 VALID_STATUS = ["Pending", "Paid", "Failed", "Cancelled"]
 
 
-# ─── LIST ────────────────────────────────────────────────────
+# ─── LIST (grouped by PO) ────────────────────────────────────
 @payments_bp.get("")
 def list_payments():
-    q = Payment.query
+    from sqlalchemy import func
+    from collections import OrderedDict
 
     status = request.args.get("status")
     po_id  = request.args.get("po_id")
     mode   = request.args.get("payment_mode")
 
+    q = Payment.query
     if status: q = q.filter(Payment.status == status)
     if po_id:  q = q.filter(Payment.po_id  == po_id)
     if mode:   q = q.filter(Payment.payment_mode == mode)
 
-    payments = q.order_by(Payment.payment_date.desc()).all()
-    return ok([p.to_dict() for p in payments])
+    payments = q.order_by(Payment.po_id, Payment.payment_date.asc()).all()
+
+    # Total paid per PO (Paid status only)
+    paid_by_po = dict(
+        db.session.query(Payment.po_id, func.sum(Payment.amount))
+        .filter(Payment.status == "Paid")
+        .group_by(Payment.po_id)
+        .all()
+    )
+
+    # Group payments by PO
+    groups = OrderedDict()
+    for p in payments:
+        pid = p.po_id
+        if pid not in groups:
+            po          = p.po
+            grand_total = float(po.grand_total or 0) if po else 0
+            total_paid  = float(paid_by_po.get(pid, 0) or 0)
+            groups[pid] = {
+                "po_id":       pid,
+                "vendor_name": po.vendor_name if po else None,
+                "department":  po.department  if po else None,
+                "grand_total": grand_total,
+                "total_paid":  round(total_paid, 2),
+                "balance":     round(max(0, grand_total - total_paid), 2),
+                "payments":    [],
+            }
+        groups[pid]["payments"].append(p.to_dict())
+
+    # Sort by most-recent payment date first
+    def _latest(g):
+        dates = [p["payment_date"] for p in g["payments"] if p["payment_date"]]
+        return max(dates) if dates else ""
+
+    result = sorted(groups.values(), key=_latest, reverse=True)
+    return ok(result)
 
 
 # ─── PENDING UTR (special list — no UTR + status Pending) ────

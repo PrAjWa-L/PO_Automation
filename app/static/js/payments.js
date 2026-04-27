@@ -1,14 +1,15 @@
 /**
  * payments.js — Payments & UTR module
+ * Cards are grouped per PO. Each card has a collapsible list of instalment rows.
  * Exposes: window.Payments
  */
 
 const Payments = (() => {
 
   let _filter   = '';
-  let _all      = [];   /* full cached list for client-side search */
-  let _payCtx   = {};   /* context for payment modal */
-  let _utrPayId = null; /* payment ID for UTR modal  */
+  let _all      = [];   // grouped PO list cached for search
+  let _payCtx   = {};   // context for payment modal
+  let _utrPayId = null; // payment ID for UTR modal
 
   const _isCOO = () => window.PROCUREIQ && window.PROCUREIQ.userRole === 'coo';
 
@@ -27,13 +28,13 @@ const Payments = (() => {
       wrap.innerHTML = Utils.emptyState('⚠', 'Could not load payments.');
       return;
     }
-    const pays = r.data || [];
-    _all = pays;
-    if (!pays.length) {
+    const groups = r.data || [];
+    _all = groups;
+    if (!groups.length) {
       wrap.innerHTML = Utils.emptyState('💳', 'No payments recorded yet.');
       return;
     }
-    wrap.innerHTML = pays.map(_card).join('');
+    wrap.innerHTML = groups.map(_poCard).join('');
   }
 
   function filter(status, tabEl) {
@@ -48,162 +49,216 @@ const Payments = (() => {
     const q = (document.getElementById('pay-search')?.value || '').toLowerCase().trim();
     const wrap = document.getElementById('payments-list');
     if (!wrap) return;
-
-    const source = _all;
-    if (!source.length) return;
+    if (!_all.length) return;
 
     const filtered = q
-      ? source.filter(p =>
-          [p.po_id, p.vendor_name, p.utr_number, p.payment_mode,
-           p.payment_type, p.status, p.department, p.payment_date]
-            .join(' ').toLowerCase().includes(q)
+      ? _all.filter(g =>
+          [g.po_id, g.vendor_name, g.department,
+           ...g.payments.map(p => [p.utr_number, p.payment_mode, p.payment_type, p.status].join(' '))
+          ].join(' ').toLowerCase().includes(q)
         )
-      : source;
+      : _all;
 
     if (!filtered.length) {
       wrap.innerHTML = Utils.emptyState('🔍', `No payments match "${Utils.esc(q)}".`);
       return;
     }
-    wrap.innerHTML = filtered.map(_card).join('');
+    wrap.innerHTML = filtered.map(_poCard).join('');
   }
 
-  function _card(p) {
-    const bal  = Math.max(0, (p.po_grand || 0) - p.amount);
-    const paid = p.status === 'Paid';
+  /* ─────────────────────────────────────────────
+     PO GROUP CARD
+  ───────────────────────────────────────────── */
+  function _poCard(g) {
+    const bal        = g.balance || 0;
+    const totalPaid  = g.total_paid || 0;
+    const grandTotal = g.grand_total || 0;
+    const count      = g.payments.length;
 
-    // Only show approval badge/controls when payment is NOT yet completed.
-    // Paid payments have cleared the workflow — no COO badge needed.
-    const needsApproval  = !paid;
-    const approvalStatus = needsApproval ? (p.approval_status || 'Pending Approval') : null;
+    // Overall PO payment status
+    const fullyPaid  = bal <= 0.01;
+    const statusCls  = fullyPaid ? 'badge-green' : (totalPaid > 0 ? 'badge-amber' : 'badge-red');
+    const statusLbl  = fullyPaid ? 'Fully Paid'  : (totalPaid > 0 ? 'Partially Paid' : 'Unpaid');
+
+    const uid = 'pg-' + g.po_id.replace(/[^a-z0-9]/gi, '-');
+
+    return `
+    <div class="po-pay-card" id="${uid}">
+
+      <!-- Header row -->
+      <div class="po-pay-hd" onclick="Payments.toggleRows('${uid}')">
+        <div class="po-pay-hd-left">
+          <div class="po-pay-po">${Utils.esc(g.po_id)}</div>
+          <div class="po-pay-meta">
+            ${Utils.esc(g.vendor_name || '—')}
+            ${g.department ? ' · ' + Utils.esc(g.department) : ''}
+          </div>
+        </div>
+        <div class="po-pay-hd-right">
+          <div class="po-pay-financials">
+            <div class="po-pay-fin-box">
+              <div class="po-pay-fin-lbl">PO Total</div>
+              <div class="po-pay-fin-val">${Utils.fmtCurrency(grandTotal)}</div>
+            </div>
+            <div class="po-pay-fin-box paid">
+              <div class="po-pay-fin-lbl">Paid</div>
+              <div class="po-pay-fin-val">${Utils.fmtCurrency(totalPaid)}</div>
+            </div>
+            <div class="po-pay-fin-box ${bal > 0.01 ? 'balance' : 'done'}">
+              <div class="po-pay-fin-lbl">Balance</div>
+              <div class="po-pay-fin-val">${Utils.fmtCurrency(bal)}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-left:12px;">
+            <span class="badge ${statusCls}">${statusLbl}</span>
+            <span class="po-pay-count">${count} payment${count !== 1 ? 's' : ''}</span>
+            <span class="po-pay-chevron" id="${uid}-chev">▾</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collapsible payment rows -->
+      <div class="po-pay-rows" id="${uid}-rows">
+        <div class="po-pay-rows-inner">
+          ${g.payments.map((p, i) => _payRow(p, g, i)).join('')}
+          <div class="po-pay-row-actions">
+            ${bal > 0.01
+              ? `<button class="btn btn-sm btn-primary"
+                         onclick="event.stopPropagation();Payments.openPayRemaining('${Utils.esc(g.po_id)}','${Utils.esc(g.vendor_name||'')}',${grandTotal},${bal})">
+                   + Pay Remaining ${Utils.fmtCurrency(bal)}
+                 </button>`
+              : `<span style="font-size:12px;color:var(--green);font-weight:600;">✓ Fully settled</span>`
+            }
+            <button class="btn btn-sm"
+                    onclick="event.stopPropagation();PO && PO.view('${Utils.esc(g.po_id)}')">
+              View PO
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>`;
+  }
+
+  function _payRow(p, g, idx) {
+    const paid           = p.status === 'Paid';
+    const approvalStatus = paid ? null : (p.approval_status || 'Pending Approval');
     const approvalCls    = approvalStatus === 'Approved' ? 'badge-green'
                          : approvalStatus === 'Rejected' ? 'badge-red'
                          : 'badge-amber';
 
     return `
-      <div class="pay-card">
-        <div class="pay-card-hd">
-          <div>
-            <div class="pay-card-po">${Utils.esc(p.po_id)}</div>
-            <div class="pay-card-vendor">
-              ${Utils.esc(p.vendor_name || '—')}
-              ${p.department ? ' · ' + Utils.esc(p.department) : ''}
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-            ${Utils.payBadge(p.status)}
-            ${approvalStatus
-              ? `<span class="badge ${approvalCls}" style="font-size:10px;">COO: ${approvalStatus}</span>`
-              : ''}
-          </div>
-        </div>
+    <div class="po-pay-row ${paid ? 'row-paid' : 'row-pending'}">
+      <div class="po-pay-row-idx">#${idx + 1}</div>
 
-        <div class="pay-amts">
-          <div class="pay-amt-box">
-            <div class="pay-amt-lbl">PO Total</div>
-            <div class="pay-amt-val">${Utils.fmtCurrency(p.po_grand || 0)}</div>
-          </div>
-          <div class="pay-amt-box paid">
-            <div class="pay-amt-lbl">Paid</div>
-            <div class="pay-amt-val">${Utils.fmtCurrency(p.amount)}</div>
-          </div>
-          <div class="pay-amt-box ${bal > 0 ? 'pending' : ''}">
-            <div class="pay-amt-lbl">Balance</div>
-            <div class="pay-amt-val">${Utils.fmtCurrency(bal)}</div>
-          </div>
+      <div class="po-pay-row-body">
+        <div class="po-pay-row-chips">
+          ${Utils.payBadge(p.status)}
+          ${approvalStatus
+            ? `<span class="badge ${approvalCls}" style="font-size:10px;">COO: ${approvalStatus}</span>`
+            : ''}
+          <span class="po-pay-chip">${Utils.esc(p.payment_type || '—')}</span>
+          <span class="po-pay-chip">${Utils.esc(p.payment_mode || '—')}</span>
         </div>
+        <div class="po-pay-row-details">
+          <span class="po-pay-row-amt">${Utils.fmtCurrency(p.amount)}</span>
+          <span class="po-pay-row-sep">·</span>
+          <span>${Utils.esc(p.payment_date || '—')}</span>
+          ${p.utr_number
+            ? `<span class="po-pay-row-sep">·</span>
+               <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">
+                 UTR: ${Utils.esc(p.utr_number)}
+               </span>`
+            : ''}
+          ${p.remarks
+            ? `<span class="po-pay-row-sep">·</span>
+               <span style="font-size:11px;color:var(--text3);font-style:italic;">${Utils.esc(p.remarks)}</span>`
+            : ''}
+        </div>
+      </div>
 
-        <div class="pay-timeline">
-          <div class="pay-step done">
-            <div class="pay-step-lbl">UTR</div>
-            <div class="pay-step-val" style="font-family:var(--font-mono);font-size:10px;">
-              ${Utils.esc(p.utr_number || '—')}
-            </div>
-          </div>
-          <div class="pay-step done">
-            <div class="pay-step-lbl">Mode</div>
-            <div class="pay-step-val">${Utils.esc(p.payment_mode || '—')}</div>
-          </div>
-          <div class="pay-step done">
-            <div class="pay-step-lbl">Date</div>
-            <div class="pay-step-val">${Utils.esc(p.payment_date || '—')}</div>
-          </div>
-          <div class="pay-step done">
-            <div class="pay-step-lbl">Type</div>
-            <div class="pay-step-val">${Utils.esc(p.payment_type || '—')}</div>
-          </div>
-          <div class="pay-step ${paid ? 'done' : 'pend'}">
-            <div class="pay-step-lbl">Status</div>
-            <div class="pay-step-val">${Utils.esc(p.status)}</div>
-          </div>
-        </div>
+      <div class="po-pay-row-btns">
+        ${_isCOO() && approvalStatus === 'Pending Approval'
+          ? `<button class="btn btn-sm btn-green" onclick="event.stopPropagation();Payments.approve(${p.id})">✓ Approve</button>
+             <button class="btn btn-sm btn-red"   onclick="event.stopPropagation();Payments.rejectPayment(${p.id})">✕ Reject</button>`
+          : ''}
+        ${!paid && approvalStatus === 'Approved'
+          ? `<button class="btn btn-sm btn-primary"
+                     onclick="event.stopPropagation();Payments.openUTR(${p.id},'${Utils.esc(p.po_id)}','${Utils.esc(g.vendor_name||'')}',${p.amount})">
+               Enter UTR →
+             </button>`
+          : ''}
+        ${!paid && approvalStatus === 'Pending Approval' && !_isCOO()
+          ? `<span class="po-pay-awaiting">Awaiting COO approval</span>`
+          : ''}
+        ${!paid && approvalStatus !== 'Approved'
+          ? `<button class="btn btn-sm" style="color:var(--red);"
+                     onclick="event.stopPropagation();Payments.remove(${p.id})">Delete</button>`
+          : ''}
+      </div>
+    </div>`;
+  }
 
-        <div class="pay-card-actions">
-          ${_isCOO() && approvalStatus === 'Pending Approval'
-            ? `<button class="btn btn-sm btn-green"
-                       onclick="Payments.approve(${p.id})">
-                 ✓ Approve
-               </button>
-               <button class="btn btn-sm btn-red"
-                       onclick="Payments.rejectPayment(${p.id})">
-                 ✕ Reject
-               </button>`
-            : ''}
-          ${!paid && approvalStatus === 'Approved'
-            ? `<button class="btn btn-sm btn-primary"
-                       onclick="Payments.openUTR(${p.id},'${Utils.esc(p.po_id)}','${Utils.esc(p.vendor_name || '')}',${p.amount})">
-                 Enter UTR →
-               </button>`
-            : ''}
-          ${!paid && approvalStatus === 'Pending Approval' && !_isCOO()
-            ? `<span style="font-size:11px;color:var(--text3);font-style:italic;">Awaiting COO approval</span>`
-            : ''}
-          <button class="btn btn-sm"
-                  onclick="PO && PO.view('${Utils.esc(p.po_id)}')">
-            View PO
-          </button>
-          ${!paid && approvalStatus !== 'Approved'
-            ? `<button class="btn btn-sm" style="color:var(--red);"
-                       onclick="Payments.remove(${p.id})">
-                 Delete
-               </button>`
-            : ''}
-        </div>
-      </div>`;
+  /* ─────────────────────────────────────────────
+     TOGGLE DROPDOWN
+  ───────────────────────────────────────────── */
+  function toggleRows(uid) {
+    const rows = document.getElementById(uid + '-rows');
+    const chev = document.getElementById(uid + '-chev');
+    if (!rows) return;
+    const open = rows.classList.toggle('open');
+    if (chev) chev.textContent = open ? '▴' : '▾';
   }
 
   /* ─────────────────────────────────────────────
      RECORD PAYMENT MODAL
   ───────────────────────────────────────────── */
-  function openModal(poId, vendor, total, due) {
-    _payCtx = { poId: poId || '', vendor: vendor || '', total: total || 0 };
+  function openModal(poId, vendor, total, due, alreadyPaid) {
+    _payCtx = {
+      poId:        poId       || '',
+      vendor:      vendor     || '',
+      total:       total      || 0,
+      alreadyPaid: alreadyPaid != null ? alreadyPaid : 0,
+    };
 
-    _set('pay-modal-title', 'Record Payment' + (poId ? ' — ' + poId : ''));
-    _set('pay-po-lbl',      poId   || '—');
-    _set('pay-vendor-lbl',  vendor || '—');
-    _set('pay-total-lbl',   Utils.fmtCurrency(total || 0));
+    _set('pay-modal-title',    'Record Payment' + (poId ? ' — ' + poId : ''));
+    _set('pay-po-lbl',         poId   || '—');
+    _set('pay-vendor-lbl',     vendor || '—');
+    _set('pay-total-lbl',      Utils.fmtCurrency(total || 0));
+    _set('pay-already-paid-lbl', Utils.fmtCurrency(_payCtx.alreadyPaid || 0));
 
-    _fld('pay-po-id',  poId    || '');
-    _fld('pay-amount', due     || '');
-    _fld('pay-date',   Utils.today());
-    _fld('pay-utr',    '');
-    _fld('pay-remarks','');
-    _fld('pay-balance', Utils.fmt(Math.max(0, (total || 0) - (due || 0))));
+    _fld('pay-po-id',   poId  || '');
+    _fld('pay-amount',  due   || '');
+    _fld('pay-date',    Utils.today());
+    _fld('pay-utr',     '');
+    _fld('pay-remarks', '');
+
+    const initAmt   = +(due || 0);
+    const remaining = Math.max(0, (_payCtx.total || 0) - _payCtx.alreadyPaid - initAmt);
+    _fld('pay-balance', Utils.fmt(remaining));
 
     Modal.open('pay-modal');
   }
 
+  function openPayRemaining(poId, vendor, total, balance) {
+    openModal(poId, vendor, total, balance, total - balance);
+    const typeEl = document.getElementById('pay-type');
+    if (typeEl) typeEl.value = 'Final';
+  }
+
   function updateBalance() {
-    const amt = +(_fldVal('pay-amount') || 0);
-    _fld('pay-balance', Utils.fmt(Math.max(0, (_payCtx.total || 0) - amt)));
+    const amt         = +(_fldVal('pay-amount') || 0);
+    const alreadyPaid = _payCtx.alreadyPaid || 0;
+    _fld('pay-balance', Utils.fmt(Math.max(0, (_payCtx.total || 0) - alreadyPaid - amt)));
   }
 
   async function save() {
     const poId = _fldVal('pay-po-id');
-    if (!poId)  { Utils.toast('PO Number is required.');     return; }
+    if (!poId) { Utils.toast('PO Number is required.');   return; }
     const amt  = +(_fldVal('pay-amount') || 0);
-    if (!amt)   { Utils.toast('Amount is required.');         return; }
+    if (!amt)  { Utils.toast('Amount is required.');      return; }
     const date = _fldVal('pay-date');
-    if (!date)  { Utils.toast('Payment date is required.');   return; }
+    if (!date) { Utils.toast('Payment date is required.'); return; }
 
     const body = {
       po_id:        poId,
@@ -293,11 +348,17 @@ const Payments = (() => {
   }
 
   /* ── Helpers ── */
-  function _fld(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
-  function _fldVal(id)   { return document.getElementById(id)?.value.trim() || ''; }
-  function _set(id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; }
+  function _fld(id, val)  { const el = document.getElementById(id); if (el) el.value = val; }
+  function _fldVal(id)    { return document.getElementById(id)?.value.trim() || ''; }
+  function _set(id, txt)  { const el = document.getElementById(id); if (el) el.textContent = txt; }
 
-  return { load, filter, search, openModal, updateBalance, save, openUTR, submitUTR, approve, rejectPayment, remove };
+  return {
+    load, filter, search,
+    openModal, openPayRemaining, updateBalance, save,
+    openUTR, submitUTR,
+    approve, rejectPayment,
+    remove, toggleRows,
+  };
 })();
 
 window.Payments = Payments;

@@ -1078,6 +1078,182 @@ td {
 .pay-ctx-lbl    { font-size: 11px; color: var(--text3); }
 .pay-ctx-total  { font-size: 15px; }
 
+/* ── PO Grouped Payment Card ─────────────────────────────── */
+.po-pay-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: box-shadow var(--t-slow);
+}
+.po-pay-card:hover { box-shadow: var(--sh-md); }
+
+/* Header (always visible, clickable) */
+.po-pay-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+}
+.po-pay-hd:hover { background: var(--surface2); }
+
+.po-pay-hd-left  { flex: 1; min-width: 0; }
+.po-pay-po       { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.po-pay-meta     { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+.po-pay-hd-right {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+/* Financial summary boxes in header */
+.po-pay-financials {
+  display: flex;
+  gap: 6px;
+}
+.po-pay-fin-box {
+  background: var(--surface3);
+  border-radius: 6px;
+  padding: 5px 10px;
+  text-align: center;
+  min-width: 80px;
+}
+.po-pay-fin-box.paid    { background: var(--green-bg); }
+.po-pay-fin-box.balance { background: var(--amber-bg); }
+.po-pay-fin-box.done    { background: var(--green-bg); }
+.po-pay-fin-lbl {
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-family: var(--font-mono);
+}
+.po-pay-fin-box.paid    .po-pay-fin-lbl { color: var(--green);  opacity: .8; }
+.po-pay-fin-box.balance .po-pay-fin-lbl { color: var(--amber);  opacity: .8; }
+.po-pay-fin-box.done    .po-pay-fin-lbl { color: var(--green);  opacity: .8; }
+.po-pay-fin-val {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  margin-top: 1px;
+  color: var(--text);
+}
+.po-pay-fin-box.paid    .po-pay-fin-val { color: var(--green); }
+.po-pay-fin-box.balance .po-pay-fin-val { color: var(--amber); }
+.po-pay-fin-box.done    .po-pay-fin-val { color: var(--green); }
+
+.po-pay-count {
+  font-size: 11px;
+  color: var(--text3);
+  white-space: nowrap;
+}
+.po-pay-chevron {
+  font-size: 13px;
+  color: var(--text3);
+  transition: transform .2s;
+  margin-left: 4px;
+}
+
+/* Collapsible rows container */
+.po-pay-rows {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .28s ease;
+  border-top: 0px solid var(--border);
+}
+.po-pay-rows.open {
+  max-height: 1200px;
+  border-top: 1px solid var(--border);
+}
+
+.po-pay-rows-inner {
+  padding: 0 0 6px;
+}
+
+/* Individual payment row inside the dropdown */
+.po-pay-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.po-pay-row:last-of-type { border-bottom: none; }
+.po-pay-row.row-paid    { background: var(--surface); }
+.po-pay-row.row-pending { background: var(--amber-bg); }
+
+.po-pay-row-idx {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text3);
+  min-width: 22px;
+  padding-top: 3px;
+}
+
+.po-pay-row-body { flex: 1; min-width: 0; }
+
+.po-pay-row-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+.po-pay-chip {
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 10px;
+  color: var(--text2);
+  font-family: var(--font-mono);
+}
+
+.po-pay-row-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.po-pay-row-amt {
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-size: 13px;
+}
+.po-pay-row-sep { color: var(--text3); }
+
+.po-pay-row-btns {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.po-pay-awaiting {
+  font-size: 10px;
+  color: var(--amber);
+  font-style: italic;
+}
+
+/* Bottom action bar inside dropdown */
+.po-pay-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 4px;
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+
+/* ── UTR strip ───────────────────────────────────────────── */
 .utr-summary-strip {
   background: var(--green-bg);
   border: 1px solid var(--green-b);
