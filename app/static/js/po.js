@@ -8,11 +8,70 @@ const PO = (() => {
 
   let _all       = [];
   let _filter    = '';
+  let _pendingFilter = null;
   let _editId    = null;
   let _currentPO = null;   /* PO loaded in view modal */
 
   /* Line items state */
   let _liItems = [_blankLI()];
+
+  const ENTITIES = {
+    cutis: {
+      name:        'CUTIS\u2122 Academy of Cutaneous Sciences',
+      affiliation: 'Affiliated to Rajiv Gandhi University of Health Sciences, Karnataka (RGUHS)',
+      addr:        '5/1, 4th Main, MRCR Layout, Vijayanagar, (Near Veeresh Theatre), Magadi Main Road, BENGALURU - 560 040',
+      gstin:       '29AAHFC6018K1Z8',
+      tel:         '080 4115 9049 / 51, 080 2340 1200 / 300',
+      mob:         '8296110020',
+      email:       'askcutis@gmail.com',
+      web:         'www.cutis.org.in',
+      logoUrl:     '/static/img/cutis_logo.png',
+      director1:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Medical Director' },
+      director2:   { name: 'Dr. Manjula C.N.',       qual: 'M.D. (OBG)',   title: 'Chief Executive Officer' },
+      addrDisplay: '5/1, 4th Main, MRCR Layout, Vijayanagar, Bengaluru-560040 &nbsp;·&nbsp; GSTIN: 29AAHFC6018K1Z8',
+      signer:      'COO', 
+    },
+    pharma: {
+      name:        'CUTIS PHARMA',
+      affiliation: '',
+      addr:        '5/1, 4th Main, MRCR Layout, Vijayanagar, (Near Veeresh Theatre), Bangalore 560040',
+      gstin:       '29AAHFC6018K1Z8',
+      tel:         '080 67157222',
+      mob:         '',
+      email:       'askcutis@gmail.com',
+      web:         'www.cutis.org.in',
+      logoUrl:     '/static/img/cutis_logo.png',
+      director1:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Managing Partner' },
+      director2:   { name: 'Dr. Manjula C.N.',       qual: 'M.D. (OBG)',   title: 'Managing Partner' },
+      addrDisplay: '5/1, 4th Main, MRCR Layout, Vijayanagar, Bangalore 560040 &nbsp;·&nbsp; Ph: 080 67157222',
+      signer:      'Managing Partner',
+    },
+    offspring: {
+      name:        'OFFSPRING — Maternity & Child Care',
+      affiliation: '',
+      addr:        '5/1-1, 4th Main, MRCR Layout, Vijayanagar, Bangalore 560040',
+      gstin:       '29AAHFC6018K1Z8',
+      tel:         '080 23404141 / 2340 4142',
+      mob:         '',
+      email:       'askcutis@gmail.com',
+      web:         'www.cutis.org.in',
+      logoUrl:     '/static/img/cutis_logo.png',
+      director1:   { name: 'Dr. Manjula C.N.',       qual: 'M.D. OBG',    title: 'Managing Partner' },
+      director2:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Managing Partner' },
+      addrDisplay: '5/1-1, 4th Main, MRCR Layout, Vijayanagar, Bangalore 560040 &nbsp;·&nbsp; Ph: 080 23404141',
+      signer:      'Managing Partner', 
+    },
+  };
+
+  window.PO_ENTITIES = ENTITIES;
+
+  function onEntityChange() {
+    const key    = document.getElementById('f-entity')?.value || 'cutis';
+    const entity = ENTITIES[key];
+    if (!entity) return;
+    const addrEl = document.getElementById('po-entity-addr');
+    if (addrEl) addrEl.innerHTML = entity.addrDisplay;
+  }
 
   function _blankLI() {
     return { name: '', desc: '', hsn: '', dept: 'IT',
@@ -39,14 +98,25 @@ const PO = (() => {
       wrap.innerHTML = Utils.emptyState('⚠', 'Could not load purchase orders.');
       return;
     }
-    _all = r.data || [];
-    _render(_all);
-  }
+     _all = r.data || [];
+    if (_pendingFilter === 'Revised') {
+      _render(_all.filter(p => p.id.includes('-R')));
+    } else {
+      _render(_all);
+    }
+    }
 
   function filter(status, tabEl) {
     document.querySelectorAll('#po-filter-tabs .tab').forEach(t => t.classList.remove('active'));
     if (tabEl) tabEl.classList.add('active');
-    load(status);
+    if (status === 'Revised') {
+      // Filter client-side — revised POs have -R in their ID
+      _pendingFilter = 'Revised';
+      load('');   // load all first
+    } else {
+      _pendingFilter = null;
+      load(status);
+    }
   }
 
   function search(q) {
@@ -71,11 +141,12 @@ const PO = (() => {
           <tr>
             <th>PO #</th>
             <th>Vendor</th>
-            <th>Created By</th>
+            <th>Department</th>
             <th>PO Date</th>
             <th>Grand Total</th>
             <th>Quotations</th>
             <th>Payments</th>
+            <th>COO Remarks</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -87,22 +158,23 @@ const PO = (() => {
   }
 
   function _row(p) {
-    const qCount  = p.quotations_count || 0;
-    const paid    = p.payments_summary?.paid_total || 0;
-    const balance = p.payments_summary?.balance    ?? p.grand_total;
-    const pCount  = p.payments_count || 0;
-    const fullyPaid = balance <= 0 && p.grand_total > 0;
+    const qCount    = p.quotations_count || 0;
+    const ps        = p.payments_summary || {};
+    const paid      = ps.paid_total || 0;
+    const balance   = ps.balance    != null ? ps.balance : p.grand_total;
+    const pCount    = ps.count || 0;
+    const fullyPaid = balance <= 0.01 && p.grand_total > 0;
+    const remarks   = p.coo_remarks || '';
 
     return `<tr>
       <td class="mono">${Utils.esc(p.id)}</td>
       <td>${Utils.esc(p.vendor_name || '—')}</td>
       <td>${Utils.deptBadge(p.department)}</td>
-      <td style="font-size:11.5px;color:var(--text2);">${Utils.esc(p.created_by || '—')}</td>
-      <td style="font-size:11.5px;color:var(--text3);">${Utils.esc(p.po_date || '—')}</td>
+      <td style="font-size:11.5px;color:var(--text2);">${Utils.esc(p.po_date || '—')}</td>
       <td class="amt">${Utils.fmtCurrency(p.grand_total)}</td>
       <td style="text-align:center;">
         ${qCount > 0
-          ? `<span style="background:var(--blue-soft,#e8f0fe);color:var(--blue,#1a73e8);
+          ? `<span style="background:var(--blue-bg);color:var(--blue);
                           font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;">
                ${qCount} quot${qCount > 1 ? 's' : ''}
              </span>`
@@ -110,17 +182,25 @@ const PO = (() => {
       </td>
       <td style="text-align:center;">
         ${pCount > 0
-          ? `<div style="font-size:11px;line-height:1.5;">
-               <div style="color:var(--green,#1e8a3e);font-weight:600;">${Utils.fmtCurrency(paid)} paid</div>
+          ? `<div style="font-size:11px;line-height:1.6;">
+               <div style="color:var(--green);font-weight:600;">${Utils.fmtCurrency(paid)} paid</div>
                ${!fullyPaid
-                 ? `<div style="color:var(--text3);">bal ${Utils.fmtCurrency(balance)}</div>`
+                 ? `<div style="color:var(--amber);">bal ${Utils.fmtCurrency(balance)}</div>`
                  : '<div style="color:var(--green);font-weight:600;">✓ Settled</div>'}
              </div>`
           : `<span style="color:var(--text3);font-size:11px;">—</span>`}
       </td>
+      <td style="max-width:160px;">
+        ${remarks
+          ? `<span style="font-size:11px;color:var(--text2);font-style:italic;
+                          display:-webkit-box;-webkit-line-clamp:2;
+                          -webkit-box-orient:vertical;overflow:hidden;"
+                   title="${Utils.esc(remarks)}">${Utils.esc(remarks)}</span>`
+          : `<span style="color:var(--text3);font-size:11px;">—</span>`}
+      </td>
       <td>${Utils.statusBadge(p.status)}</td>
       <td>
-        <div style="display:flex;gap:4px;">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
           <button class="btn btn-sm" onclick="PO.view('${Utils.esc(p.id)}')">View</button>
           ${p.status === 'Draft' ? `<button class="btn btn-sm" onclick="PO.openEdit('${Utils.esc(p.id)}')">Edit</button>` : ''}
           <div class="dl-wrap">
@@ -215,6 +295,9 @@ const PO = (() => {
     _clearHeader();
     await _genPONum();
     _renderLI();
+    const entitySel = document.getElementById('f-entity');
+    if (entitySel) entitySel.value = 'cutis';
+    onEntityChange();
     if (typeof Vendors !== 'undefined') {
       if (!Vendors.getAll().length) await Vendors.load();
       _fillVendorDropdown();
@@ -224,6 +307,15 @@ const PO = (() => {
     const submitBtn = document.querySelector('#po-modal .modal-footer .btn-primary');
     if (submitBtn) submitBtn.style.display = '';
     Modal.open('po-modal');
+  }
+
+  async function revise(poId) {
+  if (!confirm(`Create a revised copy of ${poId}? The original will be closed.`)) return;
+  const r = await API.POs.revise(poId);
+  if (!r.success) { Utils.toast(r.message || 'Revision failed'); return; }
+  Utils.toastSuccess(`Revised PO ${r.data.id} created`);
+  // Open the new revised PO in edit modal so accounts can make changes
+  await openEdit(r.data.id);
   }
 
   /* Open the PO form pre-filled with an existing Draft PO for editing */
@@ -300,6 +392,9 @@ const PO = (() => {
 
     // Close the view modal if it's open, then open the edit modal
     Modal.close('view-po-modal');
+    const entitySel = document.getElementById('f-entity');
+    if (entitySel) entitySel.value = 'cutis';
+    onEntityChange();
     Modal.open('po-modal');
   }
 
@@ -596,7 +691,22 @@ const PO = (() => {
       : await API.POs.create(body);
 
     if (r.success) {
-      Utils.toastSuccess('PO ' + (r.data?.id || '') + ' saved.');
+      const poId = r.data?.id || _editId;
+
+      // If a status transition was requested (e.g. Submit for Approval),
+      // fire it as a separate PATCH now that the PO is saved
+      if (forcedStatus && forcedStatus !== 'Draft' && poId) {
+        const sr = await API.POs.setStatus(poId, { status: forcedStatus });
+        if (sr.success) {
+          Utils.toastSuccess(`PO ${poId} saved and submitted for approval.`);
+        } else {
+          Utils.toastSuccess(`PO ${poId} saved.`);
+          Utils.toastError(`Could not submit for approval: ${sr.message}`);
+        }
+      } else {
+        Utils.toastSuccess('PO ' + (poId || '') + ' saved.');
+      }
+
       Modal.close('po-modal');
       load();
     } else {
@@ -621,6 +731,7 @@ const PO = (() => {
     _currentPO = r.data;
     _renderViewModal(_currentPO);
   }
+  function getCurrent() { return _currentPO; }
 
   function _renderViewModal(po) {
     const title = document.getElementById('vpo-title');
@@ -629,6 +740,10 @@ const PO = (() => {
 
     if (title) title.textContent = `${po.id} — ${po.vendor_name || '—'}`;
     if (sub)   sub.textContent   = `${po.po_date} · ${po.department} · ${po.status}`;
+    const reviseBtn = document.getElementById('po-revise-btn');
+    if (reviseBtn) {
+      reviseBtn.style.display = ['Approved','Rejected','Pending Approval'].includes(po.status) ? '' : 'none';
+    }
 
     const paid = po.payments_summary?.paid_total || 0;
     const bal  = po.payments_summary?.balance    || 0;
@@ -744,6 +859,37 @@ const PO = (() => {
             `COO Approval — ${po.approved_by || 'The COO'}`,
             po.status === 'Approved' || po.status === 'Closed' ? 'Approved' :
             po.status === 'Rejected' ? 'Rejected' : 'Pending')}
+      </div>
+
+      <!-- COO Remarks — always visible; editable only by COO -->
+      <div style="margin-top:14px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;
+                    letter-spacing:.5px;margin-bottom:6px;">
+          COO Remarks
+          ${window.PROCUREIQ?.userRole === 'coo' || window.PROCUREIQ?.userRole === 'admin'
+            ? `<button id="save-coo-remarks-btn" class="btn btn-sm"
+                       style="margin-left:8px;font-size:10px;padding:2px 8px;vertical-align:middle;"
+                       onclick="PO.saveCOORemarks('${Utils.esc(po.id)}')">
+                 Save
+               </button>`
+            : ''}
+        </div>
+        ${window.PROCUREIQ?.userRole === 'coo' || window.PROCUREIQ?.userRole === 'admin'
+          ? `<textarea id="coo-remarks-field"
+                       rows="3"
+                       placeholder="Write remarks for the accounts team…"
+                       style="width:100%;box-sizing:border-box;padding:8px 10px;
+                              border:1px solid var(--border);border-radius:7px;
+                              font-size:12.5px;color:var(--text);resize:vertical;
+                              background:var(--surface2);"
+               >${Utils.esc(po.coo_remarks || '')}</textarea>`
+          : po.coo_remarks
+            ? `<div style="padding:9px 12px;background:var(--amber-bg);border:1px solid var(--amber-b);
+                           border-radius:7px;font-size:12.5px;color:var(--text2);white-space:pre-wrap;">
+                 ${Utils.esc(po.coo_remarks)}
+               </div>`
+            : `<div style="font-size:12px;color:var(--text3);font-style:italic;">No remarks from COO.</div>`
+        }
       </div>`;
 
     /* Render role-aware action buttons in the footer */
@@ -765,6 +911,7 @@ const PO = (() => {
     if (!footer) return;
     const role   = window.PROCUREIQ?.userRole || '';
     const status = po.status;
+    console.log('[PO] _renderViewActions role=', role, 'status=', status, 'PROCUREIQ=', window.PROCUREIQ);
 
     /* Remove any previously injected action buttons */
     footer.querySelectorAll('.po-action-btn').forEach(b => b.remove());
@@ -772,8 +919,8 @@ const PO = (() => {
     const rw = document.getElementById('reject-reason-wrap');
     if (rw) rw.remove();
 
-    /* Accounts / Admin — edit draft, submit draft, or resubmit rejected */
-    if (role === 'accounts' || role === 'admin') {
+    /* Accounts / COO / Admin — edit draft, submit draft, or resubmit rejected */
+    if (role === 'accounts' || role === 'coo' || role === 'admin') {
       if (status === 'Draft') {
         footer.insertAdjacentHTML('beforeend', `
           <button class="btn po-action-btn"
@@ -875,14 +1022,34 @@ const PO = (() => {
     }
   }
 
+  async function saveCOORemarks(poId) {
+    const remarks = document.getElementById('coo-remarks-field')?.value.trim() || '';
+    const btn = document.getElementById('save-coo-remarks-btn');
+    if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+    const r = await API.POs.saveRemarks(poId, { coo_remarks: remarks });
+    if (r.success) {
+      Utils.toastSuccess('Remarks saved.');
+      // Update cached PO
+      if (_currentPO) _currentPO.coo_remarks = remarks;
+      const listPO = _all.find(p => p.id === poId);
+      if (listPO) listPO.coo_remarks = remarks;
+    } else {
+      Utils.toastError(r.message || 'Could not save remarks.');
+    }
+    if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
+  }
+
   async function changeStatus(id, newStatus) {
+    console.log('[PO] changeStatus called', id, newStatus, 'role=', window.PROCUREIQ?.userRole);
     const r = await API.POs.setStatus(id, { status: newStatus });
+    console.log('[PO] changeStatus response', r);
     if (r.success) {
       Utils.toastSuccess(`PO ${id} moved to ${newStatus}.`);
       Modal.close('view-po-modal');
       load();
     } else {
-      Utils.toastError(r.message);
+      Utils.toastError(r.message || 'Status change failed — check console.');
+      console.error('[PO] changeStatus failed:', r);
     }
   }
 
@@ -969,10 +1136,10 @@ const PO = (() => {
 
   return {
     load, filter, search,
-    openNew, openEdit, openFromQuotation, onVendorChange, onOrderTypeChange,
-    addLI, removeLI, _updateLI, recalc,
+    openNew, openEdit, openFromQuotation, onVendorChange, onOrderTypeChange, 
+    addLI, removeLI, _updateLI, recalc, revise, getCurrent, onEntityChange,
     save,
-    view, approveCurrent, rejectCurrent, _confirmReject, changeStatus,
+    view, approveCurrent, rejectCurrent, _confirmReject, changeStatus, saveCOORemarks,
     dlFromView, dl, generateDownload,
   };
 })();

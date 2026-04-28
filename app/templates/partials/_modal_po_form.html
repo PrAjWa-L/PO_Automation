@@ -18,14 +18,18 @@
       {# ── PO Preview Header Strip ── #}
       <div class="po-preview-strip">
         <div>
-          <div class="po-preview-company">
-            CUTIS Hospital — Academy of Cutaneous Sciences
-          </div>
-          <div class="po-preview-addr">
+          <select id="f-entity" onchange="PO.onEntityChange()"
+                  style="font-size:13px;font-weight:700;border:none;background:transparent;
+                         color:inherit;cursor:pointer;padding:0;margin-bottom:4px;width:100%;">
+            <option value="cutis">CUTIS™ Academy of Cutaneous Sciences</option>
+            <option value="pharma">CUTIS PHARMA</option>
+            <option value="offspring">OFFSPRING — Maternity & Child Care</option>
+          </select>
+          <div class="po-preview-addr" id="po-entity-addr">
             5/1, 4th Main, MRCR Layout, Vijayanagar, Bengaluru-560040
             &nbsp;·&nbsp; GSTIN: 29AAHFC6018K1Z8
           </div>
-        </div>
+        </div>  
         <div style="text-align:right;">
           <div class="po-preview-label" id="po-type-label">PURCHASE ORDER</div>
           <div class="po-preview-num mono" id="po-prev-num">—</div>

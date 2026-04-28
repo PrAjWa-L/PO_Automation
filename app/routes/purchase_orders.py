@@ -30,6 +30,7 @@ VALID_DEPTS    = ["IT", "Maintenance", "Housekeeping", "Accounts",
 # ─── LIST ────────────────────────────────────────────────────
 @po_bp.get("")
 def list_pos():
+    from sqlalchemy import func
     q = PurchaseOrder.query
 
     status = request.args.get("status")
@@ -44,7 +45,42 @@ def list_pos():
         q = q.filter(PurchaseOrder.vendor_id == vid)
 
     pos = q.order_by(PurchaseOrder.created_at.desc()).all()
-    return ok([p.to_dict(include_items=False) for p in pos])
+
+    # Pre-aggregate all counts/totals in bulk — never touch lazy relationships in the loop
+    from app.models import Payment, Quotation
+    paid_by_po = dict(
+        db.session.query(Payment.po_id, func.sum(Payment.amount))
+        .filter(Payment.status == "Paid")
+        .group_by(Payment.po_id)
+        .all()
+    )
+    pay_count_by_po = dict(
+        db.session.query(Payment.po_id, func.count(Payment.id))
+        .group_by(Payment.po_id)
+        .all()
+    )
+    quot_count_by_po = dict(
+        db.session.query(Quotation.po_id, func.count(Quotation.id))
+        .filter(Quotation.po_id != None)
+        .group_by(Quotation.po_id)
+        .all()
+    )
+
+    result = []
+    for p in pos:
+        d    = p.to_dict(include_items=False)
+        paid = float(paid_by_po.get(p.id, 0) or 0)
+        gt   = float(p.grand_total or 0)
+        d["payments_summary"] = {
+            "count":      int(pay_count_by_po.get(p.id, 0) or 0),
+            "paid_total": round(paid, 2),
+            "balance":    round(max(0, gt - paid), 2),
+        }
+        d["payments_count"]   = int(pay_count_by_po.get(p.id,   0) or 0)
+        d["quotations_count"] = int(quot_count_by_po.get(p.id, 0) or 0)
+        result.append(d)
+
+    return ok(result)
 
 
 # ─── STATS (must come before <id> route) ─────────────────────
@@ -439,14 +475,15 @@ def update_po(po_id):
 
 # ─── STATUS TRANSITION ───────────────────────────────────────
 @po_bp.patch("/<string:po_id>/status")
-@login_required
 def change_status(po_id):
     po = PurchaseOrder.query.get(po_id)
     if not po:
         return not_found("Purchase Order")
 
-    user       = current_user()
-    role       = user.get("role") if user else "accounts"
+    user = current_user()
+    if not user:
+        return err("Not authenticated — please log in again.", 401)
+    role       = user.get("role", "accounts")
     data       = request.get_json(silent=True) or {}
     new_status = data.get("status", "").strip()
 
@@ -487,12 +524,119 @@ def change_status(po_id):
             po.rejection_reason = data.get("rejection_reason", "").strip()
         if new_status in ("Draft", "Pending Approval"):
             po.rejection_reason = None   # clear on resubmit
+        if "coo_remarks" in data:
+            po.coo_remarks = (data["coo_remarks"] or "").strip() or None
         po.status = new_status
         db.session.commit()
-        return ok({"id": po.id, "status": po.status}, f"Status updated to {new_status}")
+        return ok({"id": po.id, "status": po.status, "coo_remarks": po.coo_remarks or ""}, f"Status updated to {new_status}")
     except Exception as e:
         db.session.rollback()
         return server_err(e)
+    
+# ─── REVISE PO ────────────────────────────────────────────────
+@po_bp.post("/<string:po_id>/revise")
+@login_required
+def revise_po(po_id):
+    original = PurchaseOrder.query.get(po_id)
+    if not original:
+        return not_found("Purchase Order")
+
+    if original.status not in ("Approved", "Rejected", "Pending Approval"):
+        return err("Only Approved, Rejected or Pending Approval POs can be revised", 409)
+
+    # Check if a revision already exists
+    existing = PurchaseOrder.query.filter(
+        PurchaseOrder.id.like(f"{po_id}-R%")
+    ).order_by(PurchaseOrder.id.desc()).first()
+
+    if existing:
+        # Get revision number and increment
+        try:
+            rev_num = int(existing.id.split("-R")[-1]) + 1
+        except ValueError:
+            rev_num = 2
+    else:
+        rev_num = 1
+
+    new_id = f"{po_id}-R{rev_num}"
+
+    try:
+        # Close the original
+        original.status = "Closed"
+        original.notes  = (original.notes or "") + f"\n[Revised → {new_id}]"
+
+        # Create revised copy
+        revised = PurchaseOrder(
+            id            = new_id,
+            vendor_id     = original.vendor_id,
+            vendor_name   = original.vendor_name,
+            vendor_gst    = original.vendor_gst,
+            vendor_addr   = original.vendor_addr,
+            vendor_bank   = original.vendor_bank,
+            department    = original.department,
+            requested_by  = original.requested_by,
+            created_by    = original.created_by,
+            approved_by   = "",
+            po_date       = original.po_date,
+            delivery_date = original.delivery_date,
+            payment_terms = original.payment_terms,
+            notes         = f"[Revised from {po_id}]\n" + (original.notes or "").replace(f"\n[Revised → {new_id}]", ""),
+            status        = "Draft",
+            advance_pct   = float(original.advance_pct or 0),
+            order_type    = original.order_type,
+            tds_pct       = float(original.tds_pct or 0),
+        )
+        db.session.add(revised)
+        db.session.flush()
+
+        # Copy line items
+        for li in original.line_items:
+            new_li = LineItem(
+                po_id        = new_id,
+                sort_order   = li.sort_order,
+                item_name    = li.item_name,
+                description  = li.description,
+                hsn_code     = li.hsn_code,
+                department   = li.department,
+                qty          = float(li.qty or 1),
+                mrp          = float(li.mrp or 0),
+                unit_price   = float(li.unit_price or 0),
+                discount_pct = float(li.discount_pct or 0),
+                gst_pct      = float(li.gst_pct or 18),
+            )
+            new_li.compute()
+            db.session.add(new_li)
+
+        db.session.flush()
+        revised.recalculate_totals()
+        db.session.commit()
+
+        return created(revised.to_dict(), f"Revised PO {new_id} created from {po_id}")
+
+    except Exception as e:
+        db.session.rollback()
+        return server_err(e)
+
+# ─── COO REMARKS ─────────────────────────────────────────────
+@po_bp.patch("/<string:po_id>/remarks")
+def save_coo_remarks(po_id):
+    user = current_user()
+    if not user:
+        return err("Not authenticated.", 401)
+    if user.get("role") not in ("coo", "admin"):
+        return err("Only the COO can save remarks.", 403)
+    po = PurchaseOrder.query.get(po_id)
+    if not po:
+        return not_found("Purchase Order")
+    data = request.get_json(silent=True) or {}
+    po.coo_remarks = (data.get("coo_remarks") or "").strip() or None
+    try:
+        db.session.commit()
+        return ok({"coo_remarks": po.coo_remarks or ""}, "Remarks saved")
+    except Exception as e:
+        db.session.rollback()
+        return server_err(e)
+
 
 # ─── DELETE ──────────────────────────────────────────────────
 @po_bp.delete("/<string:po_id>")

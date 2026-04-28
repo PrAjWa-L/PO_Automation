@@ -100,12 +100,14 @@ const API = (() => {
   const POs = {
     list:       (params = '') => get(`/api/purchase-orders${params}`),
     stats:      ()            => get('/api/purchase-orders/stats'),
+    revise: (poId) => post(`/api/purchase-orders/${poId}/revise`, {}),
     deptSpend: () => get('/api/purchase-orders/dept-spend'),
     get:        (id)          => get(`/api/purchase-orders/${id}`),
     create:     (body)        => post('/api/purchase-orders', body),
     update:     (id, body)    => put(`/api/purchase-orders/${id}`, body),
     remove:     (id)          => del(`/api/purchase-orders/${id}`),
-    setStatus:  (id, body)    => patch(`/api/purchase-orders/${id}/status`, body),
+    setStatus:   (id, body)   => patch(`/api/purchase-orders/${id}/status`, body),
+    saveRemarks: (id, body)   => patch(`/api/purchase-orders/${id}/remarks`, body),
   };
 
   /* ────────────────────────────────────────────

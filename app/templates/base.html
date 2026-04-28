@@ -222,8 +222,8 @@
     window.PROCUREIQ = {
       apiBase:     " ",
       currentPage: "{{ current_page | default('') }}",
-      userRole:    "{{ current_user.role if current_user else '' }}",
-      userName:    "{{ current_user.display_name if current_user else '' }}"
+      userRole:    "{{ current_user['role'] if current_user else '' }}",
+      userName:    "{{ current_user['display_name'] if current_user else '' }}"
     };
   </script>
   <script src="{{ url_for('static', filename='js/utils.js') }}"></script>

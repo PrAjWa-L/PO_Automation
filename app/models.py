@@ -119,6 +119,7 @@ class PurchaseOrder(db.Model):
     # Status: Draft | Pending Approval | Approved | Rejected | Closed
     status       = db.Column(db.String(30),  default="Draft", nullable=False)
     rejection_reason = db.Column(db.Text, nullable=True)
+    coo_remarks  = db.Column(db.Text, nullable=True)   # COO remarks visible to accounts
 
     # Financials (computed and stored for quick queries / reports)
     subtotal     = db.Column(db.Numeric(14, 2), default=0)
@@ -134,7 +135,7 @@ class PurchaseOrder(db.Model):
     # Relationships
     vendor       = db.relationship("Vendor",      back_populates="purchase_orders")
     line_items   = db.relationship("LineItem",    back_populates="po",
-                                   cascade="all, delete-orphan", lazy="joined")
+                                   cascade="all, delete-orphan", lazy="select")
     payments     = db.relationship("Payment",     back_populates="po",  lazy="dynamic")
     quotations   = db.relationship("Quotation",   back_populates="po",  lazy="dynamic")
     indents = db.relationship("Indent", back_populates="po", lazy="dynamic")
@@ -168,6 +169,7 @@ class PurchaseOrder(db.Model):
             "created_at":    self.created_at.isoformat() if self.created_at else None,
             "updated_at":    self.updated_at.isoformat() if self.updated_at else None,
             "rejection_reason": self.rejection_reason or "",
+            "coo_remarks":      self.coo_remarks or "",
         }
         if include_items:
             d["line_items"] = [li.to_dict() for li in self.line_items]
