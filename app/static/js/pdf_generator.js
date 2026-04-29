@@ -18,7 +18,7 @@ const PDFGen = (() => {
     signer:      'COO',
     director1:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Medical Director' },
     director2:   { name: 'Dr. Manjula C.N.',       qual: 'M.D. (OBG)',   title: 'Chief Executive Officer' },
-    logoUrl:     '/static/img/cutis_logo.png',
+    logoUrl:     '/static/images/logo.png',
   };
 
   const C = {
