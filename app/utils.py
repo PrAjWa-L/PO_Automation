@@ -70,12 +70,18 @@ def next_po_id():
         .first()
     )
     if not last:
-        return f"{prefix}001"
-    try:
-        num = int(last.id.replace(prefix, "")) + 1
-    except ValueError:
         num = 1
-    return f"{prefix}{num:03d}"
+    else:
+        try:
+            num = int(last.id.replace(prefix, "")) + 1
+        except ValueError:
+            num = 1
+    # Keep incrementing until we find an ID that doesn't exist
+    while True:
+        candidate = f"{prefix}{num:03d}"
+        if not PurchaseOrder.query.filter_by(id=candidate).first():
+            return candidate
+        num += 1
 
 
 def next_quotation_id():
