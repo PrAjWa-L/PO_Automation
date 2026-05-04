@@ -39,6 +39,9 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
+    from app.mail import init_mail
+    init_mail(app)
+
     origins = os.getenv("CORS_ORIGINS", "*").split(",")
     CORS(app, resources={r"/api/*": {"origins": origins}})
 

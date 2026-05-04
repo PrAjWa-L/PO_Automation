@@ -528,6 +528,11 @@ def change_status(po_id):
             po.coo_remarks = (data["coo_remarks"] or "").strip() or None
         po.status = new_status
         db.session.commit()
+
+        if new_status == "Approved":
+            from app.mail import send_approval_mail
+            send_approval_mail(po)
+
         return ok({"id": po.id, "status": po.status, "coo_remarks": po.coo_remarks or ""}, f"Status updated to {new_status}")
     except Exception as e:
         db.session.rollback()

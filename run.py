@@ -11,6 +11,8 @@ Production (Waitress — same as helpdesk setup):
 
 from app import create_app, db
 from app.models import Vendor, PurchaseOrder, LineItem, Payment, Quotation  # noqa: F401
+from dotenv import load_dotenv
+load_dotenv()
 
 app = create_app()
 
