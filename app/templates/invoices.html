@@ -2,104 +2,47 @@
 
 {% block title %}Invoice Matching — ProcureIQ{% endblock %}
 {% block page_title %}Invoice Matching{% endblock %}
-{% block page_sub %}2-way PO matching — compare invoices against purchase orders{% endblock %}
+{% block page_sub %}Upload vendor invoices and auto-match against purchase orders{% endblock %}
 
 {% block topbar_actions %}
-<button class="btn btn-primary" onclick="Quotations.openUploadModal()">↑ Upload Invoice</button>
+<button class="btn btn-primary" onclick="Invoices.openUploadModal()">↑ Upload Invoice</button>
 {% endblock %}
 
 {% block content %}
 
-<div class="toolbar mb-16">
-  <input placeholder="Search invoice, vendor, PO#…" style="width:240px;">
-  <div class="spacer"></div>
+<div id="invoices-wrap">
+  <p style="color:var(--c-muted)">Loading…</p>
 </div>
 
-{# Static sample matching cards — replace with dynamic render when
-   your invoice matching logic is wired into the backend #}
-<div class="grid2">
-
-  <div class="card">
-    <div class="card-hd">
-      <div class="card-title">INV · Amwin Systems · QNAP NAS</div>
-      <span class="badge badge-red">Mismatch Detected</span>
+{# Invoice Upload Modal #}
+<div class="overlay" id="inv-upload-modal">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <div class="modal-title">Upload Invoice</div>
+      <button class="modal-close" onclick="Modal.close('inv-upload-modal')">&times;</button>
     </div>
-    <div class="inv-row">
-      <div class="inv-ic inv-ok">✓</div>
-      <div>
-        <div class="inv-label">Vendor GSTIN 29AAPCA1129E1ZR</div>
-        <div class="inv-sub">Matches PO exactly</div>
+    <div class="modal-body">
+      <div class="fg">
+        <label>Select PO to match against</label>
+        <select id="inv-po-select" class="form-control">
+          <option value="">Loading POs…</option>
+        </select>
       </div>
-    </div>
-    <div class="inv-row">
-      <div class="inv-ic inv-ok">✓</div>
-      <div>
-        <div class="inv-label">Unit price ₹1,28,700</div>
-        <div class="inv-sub">Matches quoted amount</div>
+      <div class="fg" style="margin-top:14px;">
+        <label>Upload Vendor Invoice (PDF)</label>
+        <input type="file" id="inv-file-input" accept=".pdf">
       </div>
+      <div id="inv-upload-status" style="margin-top:10px;font-size:13px;"></div>
     </div>
-    <div class="inv-row">
-      <div class="inv-ic inv-warn">!</div>
-      <div>
-        <div class="inv-label">GST amount discrepancy</div>
-        <div class="inv-sub inv-amber">
-          Quoted ₹23,166 · Invoice ₹23,500 (Δ ₹334)
-        </div>
-      </div>
-    </div>
-    <div class="inv-row">
-      <div class="inv-ic inv-fail">✗</div>
-      <div>
-        <div class="inv-label">Grand total mismatch</div>
-        <div class="inv-sub inv-red">
-          PO ₹1,51,866 · Invoice ₹1,52,200 (Δ ₹334)
-        </div>
-      </div>
-    </div>
-    <div class="inv-actions">
-      <button class="btn btn-sm btn-primary">Raise Dispute</button>
-      <button class="btn btn-sm">Approve Anyway</button>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('inv-upload-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="Invoices.submitUpload()">Upload &amp; Match</button>
     </div>
   </div>
-
-  <div class="card">
-    <div class="card-hd">
-      <div class="card-title">INV · Charak Tech · Samsung Keyboard</div>
-      <span class="badge badge-green">Matched</span>
-    </div>
-    <div class="inv-row">
-      <div class="inv-ic inv-ok">✓</div>
-      <div>
-        <div class="inv-label">Vendor GSTIN 29BCVPN7564C1ZX</div>
-        <div class="inv-sub">Matches Proforma Invoice exactly</div>
-      </div>
-    </div>
-    <div class="inv-row">
-      <div class="inv-ic inv-ok">✓</div>
-      <div>
-        <div class="inv-label">Amount ₹10,800 verified</div>
-        <div class="inv-sub">CGST ₹823.73 + SGST ₹823.73 = correct 18%</div>
-      </div>
-    </div>
-    <div class="inv-row">
-      <div class="inv-ic inv-ok">✓</div>
-      <div>
-        <div class="inv-label">PAN BCVPN7564C</div>
-        <div class="inv-sub">Verified on document</div>
-      </div>
-    </div>
-    <div class="inv-actions">
-      <button class="btn btn-sm btn-primary">Approve &amp; Release</button>
-      <button class="btn btn-sm">View Invoice</button>
-    </div>
-  </div>
-
 </div>
-
-{% include "partials/_modal_upload_quot.html" %}
 
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{{ url_for('static', filename='js/quotations.js') }}"></script>
+<script src="{{ url_for('static', filename='js/invoices.js') }}"></script>
 {% endblock %}

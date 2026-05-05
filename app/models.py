@@ -421,3 +421,52 @@ class Indent(db.Model):
             "po_id":        self.po_id,
             "created_at":   self.created_at.isoformat() if self.created_at else None,
         }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Invoice
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Invoice(db.Model):
+    __tablename__ = "invoices"
+
+    id              = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    po_id           = db.Column(db.String(30), db.ForeignKey("purchase_orders.id"), nullable=True)
+
+    # Extracted from PDF
+    invoice_number  = db.Column(db.String(60))
+    vendor_name     = db.Column(db.String(200))
+    invoice_date    = db.Column(db.Date)
+    invoice_amount  = db.Column(db.Numeric(14, 2), default=0)
+    invoice_gst     = db.Column(db.Numeric(14, 2), default=0)
+    invoice_total   = db.Column(db.Numeric(14, 2), default=0)
+
+    # Match result
+    match_status    = db.Column(db.String(20), default="Pending")  # Matched | Mismatch | Pending
+    match_notes     = db.Column(db.Text)
+
+    # File
+    file_path       = db.Column(db.String(500))
+    file_name       = db.Column(db.String(200))
+
+    created_at      = db.Column(db.DateTime(timezone=True), default=utcnow)
+
+    po = db.relationship("PurchaseOrder", backref="invoices")
+
+    def to_dict(self):
+        return {
+            "id":              self.id,
+            "po_id":           self.po_id,
+            "invoice_number":  self.invoice_number,
+            "vendor_name":     self.vendor_name,
+            "invoice_date":    self.invoice_date.isoformat() if self.invoice_date else None,
+            "invoice_amount":  float(self.invoice_amount or 0),
+            "invoice_gst":     float(self.invoice_gst or 0),
+            "invoice_total":   float(self.invoice_total or 0),
+            "match_status":    self.match_status,
+            "match_notes":     self.match_notes,
+            "file_name":       self.file_name,
+            "po_grand_total":  float(self.po.grand_total or 0) if self.po else None,
+            "po_gst_total":    float(self.po.gst_total or 0) if self.po else None,
+            "po_vendor_name":  self.po.vendor_name if self.po else None,
+            "created_at":      self.created_at.isoformat() if self.created_at else None,
+        }

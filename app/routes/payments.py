@@ -286,6 +286,10 @@ def approve_payment(pid):
         p.approved_by     = user.get("display_name") or user.get("username", "")
         p.approved_at     = datetime.now(timezone.utc)
         db.session.commit()
+
+        from app.mail import send_payment_approval_mail
+        send_payment_approval_mail(p)
+
         return ok(p.to_dict(), f"Payment {pid} approved")
     except Exception as e:
         db.session.rollback()

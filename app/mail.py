@@ -70,3 +70,64 @@ def send_approval_mail(po):
         current_app.logger.info(f"Approval email sent for {po.id} to {coo_email}")
     except Exception as e:
         current_app.logger.error(f"Failed to send approval email for {po.id}: {e}")
+
+
+def send_payment_approval_mail(payment):
+    """Send payment approval notification email to the COO."""
+    coo_email = os.getenv("COO_EMAIL", "")
+    if not coo_email:
+        current_app.logger.warning("COO_EMAIL not set — skipping payment approval email.")
+        return
+
+    try:
+        msg = Message(
+            subject=f"Payment Approved — {payment.po_id} | ₹{float(payment.amount or 0):,.2f}",
+            recipients=[coo_email],
+        )
+        msg.html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px;">
+            <h2 style="color: #0F6E56; margin-bottom: 4px;">Payment Approved</h2>
+            <p style="color: #555; margin-top: 0;">The following payment has been approved.</p>
+
+            <table style="width:100%; border-collapse:collapse; margin: 20px 0; font-size: 14px;">
+                <tr style="background:#f5f5f5;">
+                    <td style="padding:10px 12px; font-weight:bold; width:40%;">Payment ID</td>
+                    <td style="padding:10px 12px;">{payment.id}</td>
+                </tr>
+                <tr>
+                    <td style="padding:10px 12px; font-weight:bold;">PO Number</td>
+                    <td style="padding:10px 12px;">{payment.po_id}</td>
+                </tr>
+                <tr style="background:#f5f5f5;">
+                    <td style="padding:10px 12px; font-weight:bold;">Vendor</td>
+                    <td style="padding:10px 12px;">{payment.po.vendor_name if payment.po else "—"}</td>
+                </tr>
+                <tr>
+                    <td style="padding:10px 12px; font-weight:bold;">Amount</td>
+                    <td style="padding:10px 12px;">₹{float(payment.amount or 0):,.2f}</td>
+                </tr>
+                <tr style="background:#f5f5f5;">
+                    <td style="padding:10px 12px; font-weight:bold;">Payment Mode</td>
+                    <td style="padding:10px 12px;">{payment.payment_mode or "—"}</td>
+                </tr>
+                <tr>
+                    <td style="padding:10px 12px; font-weight:bold;">Payment Type</td>
+                    <td style="padding:10px 12px;">{payment.payment_type or "—"}</td>
+                </tr>
+                <tr style="background:#f5f5f5;">
+                    <td style="padding:10px 12px; font-weight:bold;">Approved By</td>
+                    <td style="padding:10px 12px;">{payment.approved_by or "—"}</td>
+                </tr>
+                <tr>
+                    <td style="padding:10px 12px; font-weight:bold;">Due Date</td>
+                    <td style="padding:10px 12px;">{payment.due_date.strftime("%d %b %Y") if payment.due_date else "—"}</td>
+                </tr>
+            </table>
+
+            <p style="font-size: 13px; color: #888;">This is an automated notification from ProcureIQ — CUTIS Hospital.</p>
+        </div>
+        """
+        mail.send(msg)
+        current_app.logger.info(f"Payment approval email sent for payment {payment.id} to {coo_email}")
+    except Exception as e:
+        current_app.logger.error(f"Failed to send payment approval email for {payment.id}: {e}")

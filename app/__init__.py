@@ -54,6 +54,7 @@ def create_app():
     from app.routes.payments       import payments_bp
     from app.routes.quotations     import quotations_bp
     from app.routes.ai             import ai_bp
+    from app.routes.invoices       import invoices_bp
     from app.routes.health         import health_bp
     from app.routes.auth_routes import auth_bp
     from app.routes.indents import indents_bp
@@ -64,6 +65,7 @@ def create_app():
     app.register_blueprint(payments_bp,   url_prefix="/api/payments")
     app.register_blueprint(quotations_bp, url_prefix="/api/quotations")
     app.register_blueprint(ai_bp,         url_prefix="/api/ai")
+    app.register_blueprint(invoices_bp,   url_prefix="/api/invoices")
     app.register_blueprint(auth_bp)
     app.register_blueprint(indents_bp, url_prefix="/api/indents")
 
