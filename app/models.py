@@ -105,6 +105,7 @@ class PurchaseOrder(db.Model):
     requested_by = db.Column(db.String(100))
     created_by   = db.Column(db.String(100), default="Accounts Team")
     approved_by  = db.Column(db.String(100))
+    approved_by_role = db.Column(db.String(30))   # role of approver: coo | accounts_head
 
     po_date      = db.Column(db.Date,        nullable=False)
     delivery_date= db.Column(db.Date)
@@ -153,6 +154,7 @@ class PurchaseOrder(db.Model):
             "requested_by":  self.requested_by,
             "created_by":    self.created_by,
             "approved_by":   self.approved_by,
+            "approved_by_role": self.approved_by_role,
             "po_date":       self.po_date.isoformat()       if self.po_date       else None,
             "delivery_date": self.delivery_date.isoformat() if self.delivery_date else None,
             "payment_terms": self.payment_terms,
@@ -469,4 +471,29 @@ class Invoice(db.Model):
             "po_gst_total":    float(self.po.gst_total or 0) if self.po else None,
             "po_vendor_name":  self.po.vendor_name if self.po else None,
             "created_at":      self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Notification
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Notification(db.Model):
+    __tablename__ = "notifications"
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    message     = db.Column(db.Text, nullable=False)
+    po_id       = db.Column(db.String(30), nullable=True)
+    target_role = db.Column(db.String(30), nullable=False, default="coo")
+    is_read     = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime(timezone=True), default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id":          self.id,
+            "message":     self.message,
+            "po_id":       self.po_id,
+            "target_role": self.target_role,
+            "is_read":     self.is_read,
+            "created_at":  self.created_at.isoformat() if self.created_at else None,
         }

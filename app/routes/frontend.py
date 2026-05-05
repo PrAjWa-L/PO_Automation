@@ -4,9 +4,10 @@ app/routes/frontend.py
 Serves the Jinja2 HTML templates.
 
 Roles:
-  coo      — full access to everything
-  accounts — everything except approvals and ai-compare
-  hod      — indent module only, redirected to /indents on login
+  coo            — full access to everything
+  accounts       — everything except approvals and ai-compare
+  hod            — indent module only, redirected to /indents on login
+  accounts_head  — approvals module only
 """
 
 import os
@@ -37,6 +38,8 @@ def index():
     user = current_user()
     if user and user.get("role") == "hod":
         return redirect(url_for("frontend.indents"))
+    if user and user.get("role") == "accounts_head":
+        return redirect(url_for("frontend.approvals"))
     return redirect(url_for("frontend.dashboard"))
 
 
@@ -59,7 +62,7 @@ def purchase_orders():
 
 
 @frontend_bp.get("/approvals")
-@frontend_role_required("coo")
+@frontend_role_required("coo", "accounts_head")
 def approvals():
     return render_template("approvals.html", **_ctx(current_page="approvals"))
 

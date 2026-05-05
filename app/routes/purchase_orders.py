@@ -508,6 +508,13 @@ def change_status(po_id):
             "Rejected":         ["Draft"],
             "Closed":           [],
         },
+        "accounts_head": {
+            "Draft":            [],
+            "Pending Approval": ["Approved", "Rejected"],
+            "Approved":         [],
+            "Rejected":         [],
+            "Closed":           [],
+        },
     }
 
     allowed_transitions = allowed.get(role, allowed["accounts"])
@@ -520,6 +527,7 @@ def change_status(po_id):
     try:
         if new_status == "Approved" and data.get("approved_by"):
             po.approved_by = data["approved_by"]
+            po.approved_by_role = role
         if new_status == "Rejected":
             po.rejection_reason = data.get("rejection_reason", "").strip()
         if new_status in ("Draft", "Pending Approval"):
@@ -532,8 +540,18 @@ def change_status(po_id):
         if new_status == "Approved":
             from app.mail import send_approval_mail
             send_approval_mail(po)
+            # If approved by accounts_head, create a COO notification
+            if role == "accounts_head":
+                from app.models import Notification
+                notif = Notification(
+                    message=f"PO {po.id} has been approved by Accounts Head ({po.approved_by}).",
+                    po_id=po.id,
+                    target_role="coo"
+                )
+                db.session.add(notif)
+                db.session.commit()
 
-        return ok({"id": po.id, "status": po.status, "coo_remarks": po.coo_remarks or ""}, f"Status updated to {new_status}")
+        return ok({"id": po.id, "status": po.status, "coo_remarks": po.coo_remarks or "", "approved_by_role": po.approved_by_role or ""}, f"Status updated to {new_status}")
     except Exception as e:
         db.session.rollback()
         return server_err(e)

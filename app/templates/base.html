@@ -70,7 +70,7 @@
         <span class="nav-badge amber" id="nb-po"></span>
       </a>
 
-      {% if current_user.role == 'coo' %}
+      {% if current_user.role == 'coo' or current_user.role == 'accounts_head' %}
       <a class="nav-item" href="{{ url_for('frontend.approvals') }}" data-page="approvals" title="Approvals">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" width="18" height="18" aria-hidden="true">
           <path d="M16 5L8.5 13 5 9.5"/>
@@ -193,6 +193,32 @@
       </div>
       <div class="topbar-actions">
         {% block topbar_actions %}{% endblock %}
+        {% if current_user and current_user.role == 'coo' %}
+        <div class="notif-wrap" id="notifWrap" style="position:relative;display:inline-block;">
+          <button id="notifBell" onclick="Notifications.toggle()"
+                  title="Notifications"
+                  style="background:none;border:1px solid var(--border);border-radius:var(--r);
+                         padding:5px 10px;cursor:pointer;font-size:15px;color:var(--text2);
+                         line-height:1;transition:background .2s;position:relative;">
+            🔔<span id="notifCount" style="display:none;position:absolute;top:-4px;right:-4px;
+              background:#e53e3e;color:#fff;border-radius:50%;width:16px;height:16px;
+              font-size:10px;font-weight:700;line-height:16px;text-align:center;">0</span>
+          </button>
+          <div id="notifDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);
+               width:320px;background:var(--surface);border:1px solid var(--border);
+               border-radius:var(--r-lg);box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:999;">
+            <div style="padding:10px 14px;font-weight:600;font-size:13px;border-bottom:1px solid var(--border);
+                         display:flex;justify-content:space-between;align-items:center;">
+              <span>Notifications</span>
+              <button onclick="Notifications.markAllRead()" style="font-size:11px;background:none;border:none;
+                color:var(--accent);cursor:pointer;">Mark all read</button>
+            </div>
+            <div id="notifList" style="max-height:320px;overflow-y:auto;padding:6px 0;">
+              <div style="padding:20px;text-align:center;color:var(--text2);font-size:13px;">No new notifications</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
         <button id="theme-toggle" onclick="Theme.toggle()"
                 title="Toggle dark/light mode"
                 style="background:none;border:1px solid var(--border);border-radius:var(--r);
@@ -237,6 +263,8 @@
   <script src="{{ url_for('static', filename='js/tc.js') }}"></script>
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
   <script src="{{ url_for('static', filename='js/indents.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/invoices.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
   <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
   {% block extra_scripts %}{% endblock %}
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
