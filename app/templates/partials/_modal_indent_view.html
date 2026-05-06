@@ -1,0 +1,24 @@
+{# _modal_indent_view.html — View indent details
+   Controlled by: indents.js → Indents.openView(id) #}
+
+<div class="overlay" id="view-indent-modal">
+  <div class="modal" style="width:520px;">
+
+    <div class="modal-hd">
+      <div>
+        <div class="modal-title" id="vi-title">Indent</div>
+        <div class="modal-sub" id="vi-sub"></div>
+      </div>
+      <button class="modal-close" onclick="Modal.close('view-indent-modal')">&times;</button>
+    </div>
+
+    <div class="modal-body" id="vi-body">
+      {% include "partials/_loading.html" %}
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" onclick="Modal.close('view-indent-modal')">Close</button>
+    </div>
+
+  </div>
+</div>

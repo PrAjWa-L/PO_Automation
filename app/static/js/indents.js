@@ -144,7 +144,7 @@ const IndentsModule = (() => {
 
   function _actions(i, isCOO) {
     const id = Utils.esc(i.id);
-    let btns = [];
+    let btns = [`<button class="btn btn-sm" onclick="Indents.openView('${id}')">View</button>`];
 
     if (i.status === 'Pending') {
       // Raiser can edit/delete their own pending indent
@@ -350,9 +350,54 @@ const IndentsModule = (() => {
     if (el) el.value = val ?? '';
   }
 
+  async function openView(id) {
+    document.getElementById('vi-title').textContent = id;
+    document.getElementById('vi-sub').textContent   = '';
+    document.getElementById('vi-body').innerHTML    = '<div style="padding:24px;text-align:center;color:var(--text3);">Loading…</div>';
+    Modal.open('view-indent-modal');
+
+    const r = await API.Indents.get(id);
+    if (!r.success) {
+      document.getElementById('vi-body').innerHTML = '<div style="padding:24px;color:var(--danger);">Could not load indent.</div>';
+      return;
+    }
+    const i = r.data;
+
+    const priCls = { Low:'pri-low', Normal:'pri-normal', High:'pri-high', Urgent:'pri-urgent' }[i.priority] || 'pri-normal';
+    const statusCls = { Pending:'badge-amber', Approved:'badge-green', Rejected:'badge-red', 'RFQ Sent':'badge-blue' }[i.status] || 'badge-gray';
+
+    document.getElementById('vi-sub').textContent = `${i.department} · ${i.raised_by || '—'}`;
+
+    document.getElementById('vi-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;padding:4px 0;">
+        ${_viRow('Indent #',    `<span style="font-family:'DM Mono',monospace;">${Utils.esc(i.id)}</span>`)}
+        ${_viRow('Date',        i.indent_date ? Utils.fmtDate(i.indent_date) : '—')}
+        ${_viRow('Department',  Utils.esc(i.department))}
+        ${_viRow('Raised By',   Utils.esc(i.raised_by || '—'))}
+        ${_viRow('Item',        Utils.esc(i.item_name), true)}
+        ${_viRow('Quantity',    `${Utils.fmtNum(i.quantity)} ${Utils.esc(i.unit || 'Nos')}`)}
+        ${_viRow('Priority',    `<span class="badge ${priCls}">${Utils.esc(i.priority)}</span>`)}
+        ${_viRow('Status',      `<span class="badge ${statusCls}">${Utils.esc(i.status)}</span>`)}
+        ${i.remarks   ? _viRow('Remarks',     Utils.esc(i.remarks), true)   : ''}
+        ${i.approved_by ? _viRow('Approved By', Utils.esc(i.approved_by))   : ''}
+        ${i.approved_at ? _viRow('Approved At', Utils.fmtDate(i.approved_at.split('T')[0])) : ''}
+        ${i.po_id     ? _viRow('Linked PO',   `<span style="font-family:'DM Mono',monospace;">${Utils.esc(i.po_id)}</span>`) : ''}
+      </div>
+    `;
+  }
+
+  function _viRow(label, value, fullWidth = false) {
+    return `
+      <div style="${fullWidth ? 'grid-column:1/-1;' : ''}">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">${label}</div>
+        <div style="font-size:14px;color:var(--text1);">${value}</div>
+      </div>`;
+  }
+
   return {
     load, filter, filterDept, search,
     openNew, openEdit, save,
+    openView,
     approve, openReject, confirmReject, markRFQ,
     remove,
   };

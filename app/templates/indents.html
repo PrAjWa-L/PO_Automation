@@ -50,12 +50,11 @@
     <option value="">All Departments</option>
     <option>IT</option>
     <option>Maintenance</option>
-    <option>Cutis Kart</option>
+    <option>Housekeeping</option>
     <option>Accounts</option>
     <option>HR</option>
     <option>Pharmacy</option>
     <option>Administration</option>
-    <option>Aesthetic Floor</option>
   </select>
   {% endif %}
   <input id="indent-search" placeholder="Search indent, item…" style="width:180px;"
@@ -102,13 +101,12 @@
           <input id="if-item" placeholder="e.g. A4 Paper Ream, Surgical Gloves L">
         </div>
         <div class="fg">
-          <label>Your Department *</label>
+          <label>Department *</label>
           <select id="if-dept">
             <option value="">— Select —</option>
             <option>IT</option>
             <option>Maintenance</option>
-            <option>Cutis Kart</option>
-            <option>Aesthetic Floor</option>
+            <option>Housekeeping</option>
             <option>Accounts</option>
             <option>HR</option>
             <option>Pharmacy</option>
@@ -235,5 +233,6 @@
 {% endblock %}
 
 {% block extra_scripts %}
+{% include "partials/_modal_indent_view.html" %}
 <script src="{{ url_for('static', filename='js/indents.js') }}"></script>
 {% endblock %}
