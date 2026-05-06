@@ -131,3 +131,29 @@ def send_payment_approval_mail(payment):
         current_app.logger.info(f"Payment approval email sent for payment {payment.id} to {coo_email}")
     except Exception as e:
         current_app.logger.error(f"Failed to send payment approval email for {payment.id}: {e}")
+
+def send_po_pdf_mail(po_id, filename, pdf_bytes):
+    """Email the approved PO PDF to the PO archive mailbox."""
+    import base64
+    archive_email = os.getenv("PO_ARCHIVE_EMAIL", "")
+    if not archive_email:
+        current_app.logger.warning("PO_ARCHIVE_EMAIL not set — skipping PDF email.")
+        return
+
+    try:
+        msg = Message(
+            subject=f"Approved PO — {po_id}",
+            recipients=[archive_email],
+        )
+        msg.html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px;">
+            <h2 style="color: #0F6E56;">Purchase Order — {po_id}</h2>
+            <p style="color: #555;">Please find the approved PO PDF attached.</p>
+            <p style="font-size: 13px; color: #888;">This is an automated message from ProcureIQ — CUTIS Hospital.</p>
+        </div>
+        """
+        msg.attach(filename, "application/pdf", pdf_bytes)
+        mail.send(msg)
+        current_app.logger.info(f"PO PDF emailed for {po_id} to {archive_email}")
+    except Exception as e:
+        current_app.logger.error(f"Failed to email PO PDF for {po_id}: {e}")

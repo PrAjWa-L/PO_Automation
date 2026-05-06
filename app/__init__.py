@@ -59,6 +59,7 @@ def create_app():
     from app.routes.health         import health_bp
     from app.routes.auth_routes import auth_bp
     from app.routes.indents import indents_bp
+    from app.routes.drive import drive_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(vendors_bp,    url_prefix="/api/vendors")
@@ -70,6 +71,7 @@ def create_app():
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
     app.register_blueprint(auth_bp)
     app.register_blueprint(indents_bp, url_prefix="/api/indents")
+    app.register_blueprint(drive_bp,   url_prefix="/api/drive")
 
     # ── Frontend blueprint (serves HTML pages) ────────────────
     from app.routes.frontend import frontend_bp

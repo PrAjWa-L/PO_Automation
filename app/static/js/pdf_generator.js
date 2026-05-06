@@ -355,7 +355,26 @@ const PDFGen = (() => {
       doc.text(po.approved_by, M + sigW / 2, sigY + 38, { align: 'center' });
     }
         _drawFooter(doc);
-    doc.save((po.id || 'PO') + '.pdf');
+    const filename = (po.id || 'PO') + '.pdf';
+    doc.save(filename);
+
+    // Upload to Google Drive for Approved POs
+    if (po.status === 'Approved') {
+      try {
+        const pdfBytes = doc.output('arraybuffer');
+        const b64 = btoa(
+          new Uint8Array(pdfBytes).reduce((s, b) => s + String.fromCharCode(b), '')
+        );
+        fetch('/api/drive/upload-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ po_id: po.id, filename, pdf_b64: b64 }),
+        })
+        .then(r => r.json())
+        .then(r => { if (r.success) Utils.toast('PDF saved to Drive'); })
+        .catch(() => {}); // silent fail — user already has the download
+      } catch(e) {}
+    }
   }
 
   return { generate };
