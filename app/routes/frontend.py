@@ -11,7 +11,8 @@ Roles:
 """
 
 import os
-from flask import Blueprint, render_template, redirect, url_for
+import base64
+from flask import Blueprint, render_template, redirect, url_for, current_app
 from app.auth import login_required, frontend_role_required, current_user
 
 frontend_bp = Blueprint(
@@ -22,10 +23,22 @@ frontend_bp = Blueprint(
 )
 
 
+def _accounts_head_sig_b64():
+    try:
+        sig_path = os.path.join(current_app.root_path, 'static', 'images', 'signatures', 'accounts_head_sig.png')
+        if os.path.exists(sig_path):
+            with open(sig_path, 'rb') as f:
+                return base64.b64encode(f.read()).decode('utf-8')
+    except Exception:
+        pass
+    return ''
+
+
 def _ctx(**kwargs):
     defaults = {
-        "api_base":     os.getenv("API_BASE_URL", "http://localhost:8001"),
-        "current_user": current_user(),
+        "api_base":              os.getenv("API_BASE_URL", "http://localhost:8001"),
+        "current_user":          current_user(),
+        "accounts_head_sig_b64": _accounts_head_sig_b64(),
     }
     defaults.update(kwargs)
     return defaults

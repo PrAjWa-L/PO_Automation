@@ -38,7 +38,8 @@
     {# Navigation icons #}
     <nav aria-label="Main navigation">
 
-      {% if current_user and current_user.role != 'hod' %}
+      {# ── COO + Accounts: full nav ── #}
+      {% if current_user and current_user.role in ('coo', 'accounts') %}
       <a class="nav-item" href="{{ url_for('frontend.dashboard') }}" data-page="dashboard" title="Dashboard">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" width="18" height="18" aria-hidden="true">
           <rect x="2" y="2" width="7" height="7" rx="1.5"/>
@@ -48,9 +49,7 @@
         </svg>
         <span class="nav-label">Dashboard</span>
       </a>
-      {% endif %}
 
-      {% if current_user and current_user.role != 'hod' %}
       <div class="nav-divider" title="Procurement"></div>
 
       <a class="nav-item" href="{{ url_for('frontend.vendors') }}" data-page="vendors" title="Vendor Master">
@@ -70,7 +69,7 @@
         <span class="nav-badge amber" id="nb-po"></span>
       </a>
 
-      {% if current_user.role == 'coo' or current_user.role == 'accounts_head' %}
+      {% if current_user.role in ('coo', 'accounts_head') %}
       <a class="nav-item" href="{{ url_for('frontend.approvals') }}" data-page="approvals" title="Approvals">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" width="18" height="18" aria-hidden="true">
           <path d="M16 5L8.5 13 5 9.5"/>
@@ -79,7 +78,6 @@
         <span class="nav-label">Approvals</span>
         <span class="nav-badge" id="nb-appr"></span>
       </a>
-      {% endif %}
       {% endif %}
 
       <a class="nav-item" href="{{ url_for('frontend.indents') }}" data-page="indents" title="Indent Master">
@@ -91,7 +89,6 @@
         <span class="nav-badge amber" id="nb-indent"></span>
       </a>
 
-      {% if current_user and current_user.role != 'hod' %}
       <a class="nav-item" href="{{ url_for('frontend.quotations') }}" data-page="quotations" title="Quotations &amp; RFQ">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" width="18" height="18" aria-hidden="true">
           <path d="M12 3H6a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V7l-3-4z"/>
@@ -137,7 +134,33 @@
         </svg>
         <span class="nav-label">Reports</span>
       </a>
-      {% endif %}
+      {% endif %}{# end coo/accounts #}
+
+      {# ── Accounts Head: approvals only ── #}
+      {% if current_user and current_user.role == 'accounts_head' %}
+      <div class="nav-divider" title="Approvals"></div>
+      <a class="nav-item" href="{{ url_for('frontend.approvals') }}" data-page="approvals" title="Approvals">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" width="18" height="18" aria-hidden="true">
+          <path d="M16 5L8.5 13 5 9.5"/>
+          <circle cx="10" cy="10" r="8" stroke-width="1.5"/>
+        </svg>
+        <span class="nav-label">Approvals</span>
+        <span class="nav-badge" id="nb-appr"></span>
+      </a>
+      {% endif %}{# end accounts_head #}
+
+
+      {# ── HOD: indents only ── #}
+      {% if current_user and current_user.role == 'hod' %}
+      <a class="nav-item" href="{{ url_for('frontend.indents') }}" data-page="indents" title="Indent Master">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" width="18" height="18" aria-hidden="true">
+          <path d="M4 6h12M4 10h8M4 14h10"/>
+          <rect x="2" y="3" width="16" height="14" rx="2"/>
+        </svg>
+        <span class="nav-label">Indents</span>
+        <span class="nav-badge amber" id="nb-indent"></span>
+      </a>
+      {% endif %}{# end hod #}
 
     </nav>
 
@@ -246,11 +269,14 @@
   {# ── SCRIPTS ── #}
   <script>
     window.PROCUREIQ = {
-      apiBase:     " ",
-      currentPage: "{{ current_page | default('') }}",
-      userRole:    "{{ current_user['role'] if current_user else '' }}",
-      userName:    "{{ current_user['display_name'] if current_user else '' }}"
+      apiBase:     {{ " " | tojson }},
+      currentPage: {{ current_page | default('') | tojson }},
+      userRole:    {{ (current_user['role'] if current_user else '') | tojson }},
+      userName:    {{ (current_user['display_name'] if current_user else '') | tojson }}
     };
+    {% if accounts_head_sig_b64 %}
+    window.ACCOUNTS_HEAD_SIG = {{ ('data:image/png;base64,' ~ accounts_head_sig_b64) | tojson }};
+    {% endif %}
   </script>
   <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/api.js') }}"></script>

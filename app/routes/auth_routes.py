@@ -12,6 +12,7 @@ auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.get("/login")
 def login():
+    session.clear()
     if session.get("user"):
         return _role_redirect(session["user"])
     return render_template("login.html", next=request.args.get("next", ""), error=None)

@@ -26,7 +26,7 @@ const PO = (() => {
       email:       'accounts@cutis.org.in',
       web:         'www.cutis.org.in',
       logoUrl:     '/static/image/logo.png',
-      director1:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Medical Director' },
+      director1:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Chairman' },
       director2:   { name: 'Dr. Manjula C.N.',       qual: 'M.D. (OBG)',   title: 'Chief Executive Officer' },
       addrDisplay: '5/1, 4th Main, MRCR Layout, Vijayanagar, Bengaluru-560040 &nbsp;·&nbsp; GSTIN: 29AAHFC6018K1Z8',
       signer:      'COO', 

@@ -16,7 +16,7 @@ const PDFGen = (() => {
     email:       'askcutis@gmail.com',
     web:         'www.cutis.org.in',
     signer:      'COO',
-    director1:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Medical Director' },
+    director1:   { name: 'Dr. B.S. Chandrashekar', qual: 'M.D., D.N.B.', title: 'Chairman' },
     director2:   { name: 'Dr. Manjula C.N.',       qual: 'M.D. (OBG)',   title: 'Chief Executive Officer' },
     logoUrl:     '/static/images/logo.png',
   };
@@ -141,11 +141,10 @@ const PDFGen = (() => {
 
     // Order label + PO number
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...C.black);
-    doc.text((po.order_type || 'Purchase Order').toUpperCase(), M, y + 5);
+    doc.text((po.order_type || 'Purchase Order').toUpperCase(), PW / 2, y + 5, { align: 'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...C.grey);
     doc.text(po.id || 'PO-DRAFT',               PW - M, y + 2,  { align: 'right' });
     doc.text('Date: ' + (po.po_date || '—'),     PW - M, y + 7,  { align: 'right' });
-    doc.text('Status: ' + (po.status || 'Draft'), PW - M, y + 12, { align: 'right' });
     y += 18;
 
     // Vendor block
