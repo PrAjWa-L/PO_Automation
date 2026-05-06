@@ -269,13 +269,13 @@
   {# ── SCRIPTS ── #}
   <script>
     window.PROCUREIQ = {
-      apiBase:     {{ " " | tojson }},
-      currentPage: {{ current_page | default('') | tojson }},
-      userRole:    {{ (current_user['role'] if current_user else '') | tojson }},
-      userName:    {{ (current_user['display_name'] if current_user else '') | tojson }}
+      apiBase:     " ",
+      currentPage: "{{ current_page | default('') }}",
+      userRole:    "{{ current_user['role'] if current_user else '' }}",
+      userName:    "{{ current_user['display_name'] if current_user else '' }}"
     };
     {% if accounts_head_sig_b64 %}
-    window.ACCOUNTS_HEAD_SIG = {{ ('data:image/png;base64,' ~ accounts_head_sig_b64) | tojson }};
+    window.ACCOUNTS_HEAD_SIG = "data:image/png;base64,{{ accounts_head_sig_b64 }}";
     {% endif %}
   </script>
   <script src="{{ url_for('static', filename='js/utils.js') }}"></script>

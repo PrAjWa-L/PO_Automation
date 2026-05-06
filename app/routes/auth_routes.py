@@ -55,4 +55,6 @@ def _role_redirect(user_dict):
     role = user_dict.get("role", "")
     if role == "hod":
         return redirect(url_for("frontend.indents"))
+    if role == "accounts_head":
+        return redirect(url_for("frontend.approvals"))
     return redirect(url_for("frontend.dashboard"))
