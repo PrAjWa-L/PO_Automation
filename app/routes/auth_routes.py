@@ -20,7 +20,7 @@ def login():
 
 @auth_bp.post("/login")
 def login_post():
-    username = request.form.get("username", "").strip().lower()
+    username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
     next_url = request.form.get("next", "").strip()
 
