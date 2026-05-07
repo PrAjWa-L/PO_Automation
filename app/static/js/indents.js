@@ -67,7 +67,7 @@ const IndentsModule = (() => {
   function search(q) {
     const lq = q.toLowerCase();
     const filtered = _all.filter(i =>
-      [i.id, i.item_name, i.department, i.raised_by, i.status, i.priority]
+      [i.id, i.item_name, i.department, i.to_department, i.status, i.priority]
         .join(' ').toLowerCase().includes(lq)
     );
     _render(filtered);
@@ -93,7 +93,7 @@ const IndentsModule = (() => {
             <th>Item</th>
             <th>Qty</th>
             <th>Priority</th>
-            <th>Raised By</th>
+            <th>Concerned Dept</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -132,7 +132,7 @@ const IndentsModule = (() => {
         </td>
         <td style="white-space:nowrap;">${Utils.fmtNum(i.quantity)} ${Utils.esc(i.unit || 'Nos')}</td>
         <td><span class="badge ${priCls}">${Utils.esc(i.priority)}</span></td>
-        <td>${Utils.esc(i.raised_by || '—')}</td>
+        <td>${Utils.esc(i.to_department || '—')}</td>
         <td><span class="badge ${statusCls}">${Utils.esc(i.status)}</span></td>
         <td>
           <div class="indent-actions">
@@ -381,7 +381,7 @@ const IndentsModule = (() => {
         ${_viRow('Indent #',    `<span style="font-family:'DM Mono',monospace;">${Utils.esc(i.id)}</span>`)}
         ${_viRow('Date',        i.indent_date ? Utils.fmtDate(i.indent_date) : '—')}
         ${_viRow('Your Department',      Utils.esc(i.department))}
-        ${i.to_department ? _viRow('Concerned Department', Utils.esc(i.to_department)) : ''}
+        ${_viRow('Concerned Department', Utils.esc(i.to_department || '—'))}
         ${_viRow('Raised By',   Utils.esc(i.raised_by || '—'))}
         ${_viRow('Item',        Utils.esc(i.item_name), true)}
         ${_viRow('Quantity',    `${Utils.fmtNum(i.quantity)} ${Utils.esc(i.unit || 'Nos')}`)}
