@@ -98,6 +98,7 @@ def create_indent():
     department = (data.get("department") or "").strip()
     if not department:
         return err("department is required")
+    to_department = (data.get("to_department") or "").strip()
 
     try:
         qty = float(data.get("quantity") or 1)
@@ -118,7 +119,8 @@ def create_indent():
         indent = Indent(
             id          = _next_indent_id(),
             indent_date = _today(),
-            department  = department,
+            department    = department,
+            to_department = to_department,
             item_name   = item_name,
             quantity    = qty,
             unit        = unit,
@@ -151,6 +153,8 @@ def update_indent(iid):
         indent.item_name = (data["item_name"] or "").strip() or indent.item_name
     if "department" in data:
         indent.department = data["department"] or indent.department
+    if "to_department" in data:
+        indent.to_department = data["to_department"] or indent.to_department
     if "quantity" in data:
         try:
             qty = float(data["quantity"])

@@ -95,14 +95,28 @@
       </div>
 
       {# Main fields #}
-      <div class="fg3 mb-12">
-        <div class="fg fg-span2">
-          <label>Item Name *</label>
-          <input id="if-item" placeholder="e.g. A4 Paper Ream, Surgical Gloves L">
-        </div>
-        <div class="fg">
+      <div class="fg mb-12">
+        <label>Item Name *</label>
+        <input id="if-item" placeholder="e.g. A4 Paper Ream, Surgical Gloves L">
+      </div>
+
+      <div class="fg2 mb-12">
+        <div>
           <label>Your Department *</label>
           <select id="if-dept">
+            <option value="">— Select —</option>
+            <option>IT</option>
+            <option>Maintenance</option>
+            <option>Housekeeping</option>
+            <option>Accounts</option>
+            <option>HR</option>
+            <option>Pharmacy</option>
+            <option>Administration</option>
+          </select>
+        </div>
+        <div>
+          <label>Concerned Department *</label>
+          <select id="if-to-dept">
             <option value="">— Select —</option>
             <option>IT</option>
             <option>Maintenance</option>

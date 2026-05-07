@@ -251,7 +251,8 @@ class LineItem(db.Model):
             "item_name":    self.item_name,
             "description":  self.description,
             "hsn_code":     self.hsn_code,
-            "department":   self.department,
+            "department":    self.department,
+            "to_department": self.to_department,
             "qty":          float(self.qty          or 1),
             "mrp":          float(self.mrp          or 0),
             "unit_price":   float(self.unit_price   or 0),
@@ -389,8 +390,9 @@ class Indent(db.Model):
  
     id           = db.Column(db.String(20),  primary_key=True)          # IND-2025-001
     indent_date  = db.Column(db.Date,        nullable=False)
-    department   = db.Column(db.String(60),  nullable=False)
-    item_name    = db.Column(db.String(200), nullable=False)
+    department    = db.Column(db.String(60),  nullable=False)
+    to_department = db.Column(db.String(60))
+    item_name     = db.Column(db.String(200), nullable=False)
     quantity     = db.Column(db.Numeric(12, 3), nullable=False, default=1)
     unit         = db.Column(db.String(30),  default="Nos")              # Nos, Kg, Ltrs, etc.
     priority     = db.Column(db.String(20),  default="Normal")           # Low | Normal | High | Urgent
@@ -410,7 +412,8 @@ class Indent(db.Model):
         return {
             "id":           self.id,
             "indent_date":  self.indent_date.isoformat() if self.indent_date else None,
-            "department":   self.department,
+            "department":    self.department,
+            "to_department": self.to_department,
             "item_name":    self.item_name,
             "quantity":     float(self.quantity or 1),
             "unit":         self.unit,

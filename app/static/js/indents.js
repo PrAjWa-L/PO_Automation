@@ -190,7 +190,7 @@ const IndentsModule = (() => {
 
     document.getElementById('indent-modal-title').textContent = 'New Indent';
     document.getElementById('indent-modal-sub').textContent   = '';
-    document.querySelector('#indent-modal .modal-footer .btn-primary').textContent = 'Submit Indent';
+    const _submitBtn = document.querySelector('#indent-modal .modal-footer .btn-primary'); if(_submitBtn) _submitBtn.textContent = 'Submit Indent';
     Modal.open('indent-modal');
     document.getElementById('if-item')?.focus();
   }
@@ -215,6 +215,8 @@ const IndentsModule = (() => {
 
     const dept = document.getElementById('if-dept');
     if (dept) dept.value = i.department;
+    const toDept = document.getElementById('if-to-dept');
+    if (toDept) toDept.value = i.to_department || '';
     const unit = document.getElementById('if-unit');
     if (unit) unit.value = i.unit || 'Nos';
     const pri = document.getElementById('if-priority');
@@ -222,7 +224,7 @@ const IndentsModule = (() => {
 
     document.getElementById('indent-modal-title').textContent = `Edit Indent — ${id}`;
     document.getElementById('indent-modal-sub').textContent   = `Raised by ${i.raised_by || '—'}`;
-    document.querySelector('#indent-modal .modal-footer .btn-primary').textContent = 'Save Changes';
+    const _saveBtn = document.querySelector('#indent-modal .modal-footer .btn-primary'); if(_saveBtn) _saveBtn.textContent = 'Save Changes';
     Modal.open('indent-modal');
     document.getElementById('if-item')?.focus();
   }
@@ -234,6 +236,8 @@ const IndentsModule = (() => {
     });
     const dept = document.getElementById('if-dept');
     if (dept) dept.value = '';
+    const toDept = document.getElementById('if-to-dept');
+    if (toDept) toDept.value = '';
     const unit = document.getElementById('if-unit');
     if (unit) unit.value = 'Nos';
     const pri = document.getElementById('if-priority');
@@ -250,12 +254,16 @@ const IndentsModule = (() => {
     const dept = document.getElementById('if-dept')?.value;
     if (!dept) { Utils.toast('Department is required.'); return; }
 
+    const toDept = document.getElementById('if-to-dept')?.value;
+    if (!toDept) { Utils.toast('Concerned Department is required.'); return; }
+
     const qty = parseFloat(document.getElementById('if-qty')?.value);
     if (!qty || qty <= 0) { Utils.toast('Quantity must be greater than 0.'); return; }
 
     const body = {
-      item_name:  item,
-      department: dept,
+      item_name:     item,
+      department:    dept,
+      to_department: toDept,
       quantity:   qty,
       unit:       document.getElementById('if-unit')?.value     || 'Nos',
       priority:   document.getElementById('if-priority')?.value || 'Normal',
@@ -372,7 +380,8 @@ const IndentsModule = (() => {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;padding:4px 0;">
         ${_viRow('Indent #',    `<span style="font-family:'DM Mono',monospace;">${Utils.esc(i.id)}</span>`)}
         ${_viRow('Date',        i.indent_date ? Utils.fmtDate(i.indent_date) : '—')}
-        ${_viRow('Department',  Utils.esc(i.department))}
+        ${_viRow('Your Department',      Utils.esc(i.department))}
+        ${i.to_department ? _viRow('Concerned Department', Utils.esc(i.to_department)) : ''}
         ${_viRow('Raised By',   Utils.esc(i.raised_by || '—'))}
         ${_viRow('Item',        Utils.esc(i.item_name), true)}
         ${_viRow('Quantity',    `${Utils.fmtNum(i.quantity)} ${Utils.esc(i.unit || 'Nos')}`)}
