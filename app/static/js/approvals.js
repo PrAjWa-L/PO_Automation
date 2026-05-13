@@ -48,7 +48,7 @@ const Approvals = (() => {
               <td>
                 <div style="display:flex;gap:5px;">
                   <button class="btn btn-sm btn-primary"
-                          onclick="Approvals.approve('${Utils.esc(p.id)}')">
+                          onclick="Approvals.approve('${Utils.esc(p.id)}', this)">
                     Approve
                   </button>
                   <button class="btn btn-sm btn-red"
@@ -66,17 +66,32 @@ const Approvals = (() => {
       </table>`;
   }
 
- async function approve(id) {
+ async function approve(id, btnEl) {
+    // Show loading cursor on button, disable to prevent double-clicks
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.style.cursor = 'wait';
+    }
+    document.body.style.cursor = 'wait';
+
     const r = await API.POs.setStatus(id, {
       status:      'Approved',
-      approved_by: window.CURRENT_USER_DISPLAY || 'COO',
+      approved_by: window.CURRENT_USER_DISPLAY || window.PROCUREIQ?.userName || 'COO',
     });
+
+    // Restore cursor
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.style.cursor = '';
+    }
+    document.body.style.cursor = '';
+
     if (r.success) {
       Utils.toastSuccess(`PO ${id} approved.`);
-      load();
     } else {
-      Utils.toastError(r.message);
+      Utils.toastError(r.message || 'Approval failed — refreshing list.');
     }
+    load();
   }
 
   async function reject(id) {
