@@ -42,13 +42,31 @@ const PDFGen = (() => {
   // Active entity for current generation — set at start of generate()
   let _activeOrg = ORG;
 
+  // Cache of preloaded logo base64 strings keyed by URL
+  const _imgCache = {};
+
+  function _loadImageAsBase64(url) {
+    if (_imgCache[url]) return Promise.resolve(_imgCache[url]);
+    return fetch(url)
+      .then(r => r.blob())
+      .then(blob => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => { _imgCache[url] = reader.result; resolve(reader.result); };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      }))
+      .catch(() => null);
+  }
+
   function _drawLetterhead(doc, y, org) {
     org = org || _activeOrg;
     doc.setFillColor(...C.teal);
     doc.rect(M, y, CW, 2, 'F');
     y += 5;
 
-    try { doc.addImage(org.logoUrl, 'PNG', M, y, 32, 11); } catch(e) {}
+    if (org._logoB64) {
+      try { doc.addImage(org._logoB64, 'PNG', M, y, 32, 11); } catch(e) {}
+    }
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
@@ -123,7 +141,7 @@ const PDFGen = (() => {
     }).join('\n');
   }
 
-  function generate(po) {
+  async function generate(po) {
     if (!window.jspdf) {
       Utils.toast('PDF library not loaded. Check internet connection.');
       return;
@@ -134,6 +152,9 @@ const PDFGen = (() => {
     // Resolve entity
     const entityKey = document.getElementById('f-entity')?.value || 'cutis';
     _activeOrg = (window.PO_ENTITIES && window.PO_ENTITIES[entityKey]) || ORG;
+
+    // Preload logo as base64 to avoid fetch/blob/HTTPS issues inside jsPDF
+    _activeOrg._logoB64 = await _loadImageAsBase64(_activeOrg.logoUrl);
 
     const intra = (po.vendor_gst || '').toUpperCase().startsWith('29');
 
