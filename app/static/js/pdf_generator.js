@@ -249,11 +249,12 @@ const PDFGen = (() => {
     colStyles[1] = { cellWidth: cws[1], halign: 'left', overflow: 'linebreak' };
     colStyles[2] = { cellWidth: cws[2], halign: 'center' };
 
+    // top: M + 46 reserves space for the letterhead drawn by didDrawPage on subsequent pages
     doc.autoTable({
       head: heads,
       body: tableRows,
       startY: y,
-      margin: { left: M, right: M },
+      margin: { left: M, right: M, top: M + 46, bottom: FOOTER_H + 5 },
       tableWidth: CW,
       styles: { fontSize: 8, cellPadding: 3, textColor: C.black, overflow: 'linebreak', valign: 'middle' },
       headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 8, halign: 'center' },
