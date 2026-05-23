@@ -166,7 +166,7 @@ const PDFGen = (() => {
     const billLines = [
       _activeOrg.name,
       _activeOrg.addr,
-      'GSTIN: ' + _activeOrg.gstin,
+      ...(entityKey !== 'offspring' ? ['GSTIN: ' + _activeOrg.gstin] : []),
       'Tel: '   + _activeOrg.tel,
       'Email: ' + _activeOrg.email,
     ];
@@ -240,8 +240,8 @@ const PDFGen = (() => {
     });
 
     const cws = intra
-      ? [8, 52, 18, 14, 10, 20, 12, 16, 16, 16]
-      : [8, 70, 20, 14, 10, 24, 12, 24];
+      ? [8, 42, 16, 12, 14, 18, 11, 19, 19, 23]
+      : [8, 62, 18, 12, 14, 20, 11, 37];
 
     const colStyles = {};
     cws.forEach((w, i) => { colStyles[i] = { cellWidth: w, halign: 'right' }; });
@@ -342,7 +342,9 @@ const PDFGen = (() => {
       _sigToUse = window.ACCOUNTS_HEAD_SIG;
     }
 
-    try { doc.addImage(_sigToUse, 'PNG', M + 5, sigY + 9, sigW - 10, 18); } catch(e) {}
+    if (po.status === 'Approved') {
+      try { doc.addImage(_sigToUse, 'PNG', M + 5, sigY + 9, sigW - 10, 18); } catch(e) {}
+    }
     doc.line(M + 5, sigY + 29, M + sigW - 5, sigY + 29);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...C.grey);
 
@@ -350,7 +352,7 @@ const PDFGen = (() => {
       ? 'Accounts Head'
       : 'Authorised Signatory';
     doc.text(_signerLabel, M + sigW / 2, sigY + 33, { align: 'center' });
-    if (po.approved_by) {
+    if (po.status === 'Approved' && po.approved_by) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...C.black);
       doc.text(po.approved_by, M + sigW / 2, sigY + 38, { align: 'center' });
     }

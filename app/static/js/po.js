@@ -50,7 +50,6 @@ const PO = (() => {
       name:        'OFFSPRING — Maternity & Child Care',
       affiliation: '',
       addr:        '5/1-1, 4th Main, MRCR Layout, Vijayanagar, Bangalore 560040',
-      gstin:       '29AAHFC6018K1Z8',
       tel:         '080 23404141 / 2340 4142',
       mob:         '',
       email:       'accounts@cutis.org.in',
