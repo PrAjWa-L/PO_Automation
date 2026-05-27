@@ -600,12 +600,12 @@ const PO = (() => {
     const total = after + gstA;
     const intra = _isIntraState();
 
-    // Cell indices: 0=name 1=desc 2=hsn 3=dept 4=qty 5=mrp 6=price 7=disc 8=gst
-    //               9=CGST 10=SGST 11=IGST 12=Total 13=del
-    const cgstCell  = row.cells[9]  && row.cells[9].querySelector('.ro-cell');
-    const sgstCell  = row.cells[10] && row.cells[10].querySelector('.ro-cell');
-    const igstCell  = row.cells[11] && row.cells[11].querySelector('.ro-cell');
-    const totalCell = row.cells[12] && row.cells[12].querySelector('.ro-cell');
+    // Cell indices: 0=name 1=hsn 2=qty 3=mrp 4=price 5=disc 6=gst
+    //               7=CGST 8=SGST 9=IGST 10=Total 11=del
+    const cgstCell  = row.cells[7]  && row.cells[7].querySelector('.ro-cell');
+    const sgstCell  = row.cells[8]  && row.cells[8].querySelector('.ro-cell');
+    const igstCell  = row.cells[9]  && row.cells[9].querySelector('.ro-cell');
+    const totalCell = row.cells[10] && row.cells[10].querySelector('.ro-cell');
 
     if (cgstCell)  cgstCell.innerHTML  = intra ? Utils.fmt(gstA / 2) : '<span style="color:var(--text3)">—</span>';
     if (sgstCell)  sgstCell.innerHTML  = intra ? Utils.fmt(gstA / 2) : '<span style="color:var(--text3)">—</span>';
