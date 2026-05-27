@@ -382,6 +382,7 @@ def create_po():
 
         po = PurchaseOrder(
             id            = next_po_id(),
+            entity        = data.get("entity", "cutis").strip() or "cutis",
             vendor_id     = vendor_id,
             vendor_name   = vendor_name,
             vendor_gst    = vendor_gst,
@@ -437,6 +438,7 @@ def update_po(po_id):
 
     try:
         # Update header fields if provided
+        if "entity"        in data: po.entity        = data["entity"] or "cutis"
         if "department"    in data: po.department    = data["department"]
         if "requested_by"  in data: po.requested_by  = data["requested_by"]
         if "created_by"    in data: po.created_by    = data["created_by"]
@@ -591,6 +593,7 @@ def revise_po(po_id):
         # Create revised copy
         revised = PurchaseOrder(
             id            = new_id,
+            entity        = original.entity or "cutis",
             vendor_id     = original.vendor_id,
             vendor_name   = original.vendor_name,
             vendor_gst    = original.vendor_gst,

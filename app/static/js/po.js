@@ -392,7 +392,7 @@ const PO = (() => {
     // Close the view modal if it's open, then open the edit modal
     Modal.close('view-po-modal');
     const entitySel = document.getElementById('f-entity');
-    if (entitySel) entitySel.value = 'cutis';
+    if (entitySel) entitySel.value = po.entity || 'cutis';
     onEntityChange();
     Modal.open('po-modal');
   }
@@ -660,6 +660,7 @@ const PO = (() => {
     }
 
     const body = {
+      entity:        document.getElementById('f-entity')?.value || 'cutis',
       vendor_id:     vendorId || null,
       department:    dept,
       po_date:       date,
@@ -1091,6 +1092,7 @@ const PO = (() => {
     const po = {
       id:            document.getElementById('f-ponum')?.value || 'PO-DRAFT',
       status:        document.getElementById('f-status')?.value || 'Draft',
+      entity:        document.getElementById('f-entity')?.value || 'cutis',
       vendor_name:   v?.name    || '—',
       vendor_gst:    v?.gst     || '',
       vendor_addr:   v?.address || '',

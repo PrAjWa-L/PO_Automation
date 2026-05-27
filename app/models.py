@@ -112,6 +112,9 @@ class PurchaseOrder(db.Model):
     payment_terms= db.Column(db.String(60),  default="Net 30")
     notes        = db.Column(db.Text)
 
+    # Entity: cutis | pharma | offspring
+    entity       = db.Column(db.String(20),  default="cutis", nullable=False)
+
     # Order type: Purchase Order | Work Order
     order_type   = db.Column(db.String(20),  default="Purchase Order", nullable=False)
     tds_pct      = db.Column(db.Numeric(5,  2), default=0)   # only used for Work Orders
@@ -144,6 +147,7 @@ class PurchaseOrder(db.Model):
     def to_dict(self, include_items=True):
         d = {
             "id":            self.id,
+            "entity":        self.entity or "cutis",
             "order_type":    self.order_type or "Purchase Order",
             "vendor_id":     self.vendor_id,
             "vendor_name":   self.vendor_name,

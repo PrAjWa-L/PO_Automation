@@ -149,9 +149,10 @@ const PDFGen = (() => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-    // Resolve entity
-    const entityKey = document.getElementById('f-entity')?.value || 'cutis';
-    _activeOrg = (window.PO_ENTITIES && window.PO_ENTITIES[entityKey]) || ORG;
+    // Resolve entity — prefer po.entity (set on saved POs), fall back to form dropdown
+    const entityKey = po.entity || document.getElementById('f-entity')?.value || 'cutis';
+    // Work on a shallow copy so we never mutate the shared PO_ENTITIES objects
+    _activeOrg = Object.assign({}, (window.PO_ENTITIES && window.PO_ENTITIES[entityKey]) || ORG);
 
     // Preload logo as base64 to avoid fetch/blob/HTTPS issues inside jsPDF
     _activeOrg._logoB64 = await _loadImageAsBase64(_activeOrg.logoUrl);
@@ -261,8 +262,8 @@ const PDFGen = (() => {
     });
 
     const cws = intra
-      ? [8, 42, 16, 12, 14, 18, 11, 19, 19, 23]
-      : [8, 62, 18, 12, 14, 20, 11, 37];
+      ? [11, 36, 16, 12, 17, 18, 15, 19, 19, 19]
+      : [11, 54, 18, 12, 17, 20, 15, 35];
 
     const colStyles = {};
     cws.forEach((w, i) => { colStyles[i] = { cellWidth: w, halign: 'right' }; });
