@@ -1082,7 +1082,10 @@ const PO = (() => {
       disc += d;
       gstT += a * (it.gst / 100);
     });
-    const grand  = sub - disc + gstT;
+    sub  = Math.round(sub  * 100) / 100;
+    disc = Math.round(disc * 100) / 100;
+    gstT = Math.round(gstT * 100) / 100;
+    const grand  = Math.round((sub - disc + gstT) * 100) / 100;
     const advPct = +(document.getElementById('f-advpct')?.value || 0);
 
     const v = typeof Vendors !== 'undefined'
