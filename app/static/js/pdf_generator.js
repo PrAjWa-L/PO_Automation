@@ -141,6 +141,31 @@ const PDFGen = (() => {
     }).join('\n');
   }
 
+  function _amountInWords(amount) {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                  'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+                  'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    function _words(n) {
+      if (n === 0) return '';
+      if (n < 20) return ones[n] + ' ';
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '') + ' ';
+      if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred ' + _words(n % 100);
+      if (n < 100000)  return _words(Math.floor(n / 1000))  + 'Thousand '  + _words(n % 1000);
+      if (n < 10000000) return _words(Math.floor(n / 100000)) + 'Lakh '    + _words(n % 100000);
+      return _words(Math.floor(n / 10000000)) + 'Crore ' + _words(n % 10000000);
+    }
+
+    const rounded = Math.round(amount * 100) / 100;
+    const rupees  = Math.floor(rounded);
+    const paise   = Math.round((rounded - rupees) * 100);
+    let result    = (_words(rupees).trim() || 'Zero') + ' Rupees';
+    if (paise > 0) result += ' and ' + _words(paise).trim() + ' Paise';
+    result += ' Only';
+    return result;
+  }
+
   async function generate(po) {
     if (!window.jspdf) {
       Utils.toast('PDF library not loaded. Check internet connection.');
@@ -290,15 +315,48 @@ const PDFGen = (() => {
     y = doc.lastAutoTable.finalY + 6;
 
     // Totals
-    y = _checkPage(doc, y, 40);
+    // Build per-slab GST breakdown from line items
+    const gstSlabs = {};
+    (po.line_items || []).forEach(li => {
+      const gstPct = parseFloat(li.gst_pct || 18);
+      const qty    = parseFloat(li.qty         || 1);
+      const price  = parseFloat(li.unit_price  || 0);
+      const disc   = parseFloat(li.discount_pct|| 0);
+      const base   = qty * price * (1 - disc / 100);
+      const gstAmt = Math.round(base * gstPct / 100 * 100) / 100;
+      const key    = gstPct.toString();
+      gstSlabs[key] = Math.round(((gstSlabs[key] || 0) + gstAmt) * 100) / 100;
+    });
+    const slabEntries = Object.keys(gstSlabs)
+      .map(k => parseFloat(k))
+      .sort((a, b) => a - b);
+
+    y = _checkPage(doc, y, 40 + slabEntries.length * 6);
     const boxW = 80;
     const boxX = PW - M - boxW;
     const lH   = 6;
+
     const totRows = [
       ['Subtotal',   po.subtotal  || 0],
       ['Discounts', -(po.discount || 0)],
-      [intra ? 'GST (CGST+SGST)' : 'GST (IGST)', po.gst_total || 0],
     ];
+
+    if (slabEntries.length <= 1) {
+      // Single slab — show as one line
+      totRows.push([intra ? 'GST (CGST+SGST)' : 'GST (IGST)', po.gst_total || 0]);
+    } else {
+      // Multiple slabs — one line per rate
+      slabEntries.forEach(rate => {
+        const amt = gstSlabs[rate.toString()];
+        if (intra) {
+          totRows.push([`CGST @ ${rate / 2}%`, Math.round(amt / 2 * 100) / 100]);
+          totRows.push([`SGST @ ${rate / 2}%`, Math.round(amt / 2 * 100) / 100]);
+        } else {
+          totRows.push([`IGST @ ${rate}%`, amt]);
+        }
+      });
+    }
+
     if (po.order_type === 'Work Order' && parseFloat(po.tds_amt || 0) > 0)
       totRows.push([`TDS (${po.tds_pct || 0}%)`, -(po.tds_amt || 0)]);
 
@@ -324,7 +382,23 @@ const PDFGen = (() => {
     doc.setTextColor(...C.teal);
     const gt = parseFloat(po.grand_total || 0);
     doc.text('Rs.' + gt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), PW - M - 2, y + 4, { align: 'right' });
-    y += 14;
+
+    y += 11;
+
+    // Amount in words — aligned with totals box, below grand total
+    const wordsStr     = _amountInWords(gt);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+    const wordsWrapped = doc.splitTextToSize(wordsStr, boxW + 8 - 22);
+    const wordsBoxH    = wordsWrapped.length * 4.2 + 7;
+    doc.setFillColor(...C.bgLight);
+    doc.roundedRect(boxX - 4, y - 2, boxW + 8, wordsBoxH, 1.5, 1.5, 'F');
+    doc.setDrawColor(...C.lightGrey); doc.setLineWidth(0.3);
+    doc.roundedRect(boxX - 4, y - 2, boxW + 8, wordsBoxH, 1.5, 1.5, 'S');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...C.darkTeal);
+    doc.text('Amount in Words:', boxX - 1, y + 3);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...C.black);
+    doc.text(wordsWrapped, boxX - 1, y + 7.5);
+    y += wordsBoxH + 4;
 
     // Notes / T&C
     if (po.notes && po.notes.trim()) {
