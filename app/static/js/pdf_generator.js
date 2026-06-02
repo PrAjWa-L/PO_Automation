@@ -131,14 +131,23 @@ const PDFGen = (() => {
   }
 
   function _numberTC(text) {
-    if (!text) return text;
-    let counter = 1;
-    return text.split('\n').map(line => {
-      const trimmed = line.trim();
-      if (!trimmed) return '';
-      if (/^\d+[\.\)]/.test(trimmed)) return trimmed;
-      return `${counter++}. ${trimmed}`;
-    }).join('\n');
+  if (!text) return text;
+
+  const lines = text
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  let counter = 1;
+
+  return lines.map(line => {
+    // Keep existing numbering if already present
+    if (/^\d+[\.\)]/.test(line)) {
+      return line;
+    }
+
+    return `${counter++}. ${line}`;
+  }).join('\n');
   }
 
   function _amountInWords(amount) {
@@ -261,58 +270,200 @@ const PDFGen = (() => {
     doc.rect(M,               y - 9, halfW - 0.5, blockH + 9, 'S');
     doc.rect(M + halfW + 0.5, y - 9, halfW - 0.5, blockH + 9, 'S');
     y += blockH + 5;
+// Line items table
+y = _checkPage(doc, y, 30);
 
-    // Line items table
-    y = _checkPage(doc, y, 30);
-    const heads = intra
-      ? [['#', 'Product Name', 'HSN', 'Qty', 'Unit', 'Rate', 'Tax%', 'CGST', 'SGST', 'Total']]
-      : [['#', 'Product Name', 'HSN', 'Qty', 'Unit', 'Rate', 'Tax%', 'Total']];
+const heads = intra
+  ? [['#', 'Product Name', 'HSN', 'Qty', 'Unit', 'Rate', 'Tax%', 'CGST', 'SGST', 'Total']]
+  : [['#', 'Product Name', 'HSN', 'Qty', 'Unit', 'Rate', 'Tax%', 'Total']];
 
-    const tableRows = (po.line_items || []).map((li, idx) => {
-      const qty    = parseFloat(li.qty          || 1);
-      const price  = parseFloat(li.unit_price   || 0);
-      const disc   = parseFloat(li.discount_pct || 0);
-      const gstPct = parseFloat(li.gst_pct      || 18);
-      const base   = qty * price * (1 - disc / 100);
-      const cgst   = li.cgst       != null ? parseFloat(li.cgst)       : base * gstPct / 200;
-      const sgst   = li.sgst       != null ? parseFloat(li.sgst)       : base * gstPct / 200;
-      const igst   = li.igst       != null ? parseFloat(li.igst)       : base * gstPct / 100;
-      const total  = li.line_total != null ? parseFloat(li.line_total)  : base + (intra ? cgst + sgst : igst);
-      const row = [idx + 1, li.item_name || '—', li.hsn_code || '—',
-                   qty % 1 === 0 ? qty : qty.toFixed(2), 'nos',
-                   price.toFixed(2), gstPct + '%'];
-      if (intra) row.push(cgst.toFixed(2), sgst.toFixed(2));
-      row.push(total.toFixed(2));
-      return row;
-    });
+const tableRows = (po.line_items || []).map((li, idx) => {
+  const qty    = parseFloat(li.qty || 1);
+  const price  = parseFloat(li.unit_price || 0);
+  const disc   = parseFloat(li.discount_pct || 0);
+  const gstPct = parseFloat(li.gst_pct || 18);
 
-    const cws = intra
-      ? [11, 36, 16, 12, 17, 18, 15, 19, 19, 19]
-      : [11, 54, 18, 12, 17, 20, 15, 35];
+  const base   = qty * price * (1 - disc / 100);
 
-    const colStyles = {};
-    cws.forEach((w, i) => { colStyles[i] = { cellWidth: w, halign: 'right' }; });
-    colStyles[0] = { cellWidth: cws[0], halign: 'center' };
-    colStyles[1] = { cellWidth: cws[1], halign: 'left', overflow: 'linebreak' };
-    colStyles[2] = { cellWidth: cws[2], halign: 'center' };
+  const cgst   = li.cgst != null
+    ? parseFloat(li.cgst)
+    : base * gstPct / 200;
 
-    // top: M + 46 reserves space for the letterhead drawn by didDrawPage on subsequent pages
-    doc.autoTable({
-      head: heads,
-      body: tableRows,
-      startY: y,
-      margin: { left: M, right: M, top: M + 46, bottom: FOOTER_H + 5 },
-      tableWidth: CW,
-      styles: { fontSize: 8, cellPadding: 3, textColor: C.black, overflow: 'linebreak', valign: 'middle' },
-      headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 8, halign: 'center' },
-      alternateRowStyles: { fillColor: C.bgRow },
-      columnStyles: colStyles,
-      didDrawPage: (data) => {
-        if (data.pageNumber > 1) _drawLetterhead(doc, M);
-        _drawFooter(doc);
-      },
-    });
-    y = doc.lastAutoTable.finalY + 6;
+  const sgst   = li.sgst != null
+    ? parseFloat(li.sgst)
+    : base * gstPct / 200;
+
+  const igst   = li.igst != null
+    ? parseFloat(li.igst)
+    : base * gstPct / 100;
+
+  const total  = li.line_total != null
+    ? parseFloat(li.line_total)
+    : base + (intra ? cgst + sgst : igst);
+
+  const row = [
+    idx + 1,
+    li.item_name || '—',
+    li.hsn_code || '—',
+    qty % 1 === 0 ? qty : qty.toFixed(2),
+    'nos',
+    price.toLocaleString('en-IN', {
+    maximumFractionDigits: 2
+    }),
+    gstPct + '%'
+  ];
+
+  if (intra) {
+    row.push(cgst.toFixed(2), sgst.toFixed(2));
+  }
+
+  row.push(total.toLocaleString('en-IN', {
+  maximumFractionDigits: 2
+  }));
+
+  return row;
+});
+
+
+// Better column balance
+const cws = intra
+  ? [8, 48, 18, 10, 12, 22, 10, 15, 15, 28]
+  : [8, 70, 18, 10, 12, 22, 10, 34];
+// Column styling
+const colStyles = {};
+
+cws.forEach((w, i) => {
+  colStyles[i] = {
+    cellWidth: w,
+    halign: 'center',
+    valign: 'middle',
+    overflow: 'hidden'
+  };
+});
+
+
+// Product description column
+colStyles[1] = {
+  cellWidth: cws[1],
+  halign: 'left',
+  overflow: 'linebreak',
+  cellPadding: 2
+};
+
+// HSN column
+colStyles[2] = {
+  cellWidth: cws[2],
+  halign: 'center',
+  overflow: 'visible',
+  valign: 'middle'
+};
+
+
+// Numeric columns
+const rightAligned = intra
+  ? [5, 7, 8, 9]
+  : [5, 7];
+
+rightAligned.forEach(i => {
+  colStyles[i] = {
+    cellWidth: cws[i],
+    halign: 'right',
+    valign: 'middle',
+    overflow: 'hidden'
+  };
+});
+
+rightAligned.forEach(i => {
+  colStyles[i] = {
+    cellWidth: cws[i],
+    halign: 'right',
+    valign: 'middle',
+    overflow: 'hidden'
+  };
+});
+
+
+// Extra spacing fix for amount columns
+const amountCols = intra
+  ? [5, 7, 8, 9]
+  : [5, 7];
+
+amountCols.forEach(i => {
+  colStyles[i].cellPadding = {
+    top: 1.5,
+    right: 3,
+    bottom: 1.5,
+    left: 1
+  };
+});
+
+
+// AutoTable
+doc.autoTable({
+  head: heads,
+  body: tableRows,
+  startY: y,
+
+  margin: {
+    left: M,
+    right: M,
+    top: M + 46,
+    bottom: FOOTER_H + 5
+  },
+
+  tableWidth: 'wrap',
+
+  styles: {
+    fontSize: 7,
+    cellPadding: 1.5,
+    textColor: C.black,
+    overflow: 'linebreak',
+    valign: 'middle',
+    lineWidth: 0.1
+  },
+
+  headStyles: {
+    fillColor: C.teal,
+    textColor: C.white,
+    fontStyle: 'bold',
+    fontSize: 8,
+    halign: 'center'
+  },
+
+  alternateRowStyles: {
+    fillColor: C.bgRow
+  },
+
+  theme: 'grid',
+  rowPageBreak: 'avoid',
+  tableLineWidth: 0.1,
+  tableLineColor: [220, 220, 220],
+
+  columnStyles: colStyles,
+
+  didParseCell: function (data) {
+
+  // Remove extra right border from last column
+  if (data.column.index === data.table.columns.length - 1) {
+    data.cell.styles.lineWidth = {
+      top: 0.1,
+      right: 0,
+      bottom: 0.1,
+      left: 0.1
+      };
+    }
+  },
+
+  didDrawPage: (data) => {
+    if (data.pageNumber > 1) {
+      _drawLetterhead(doc, M);
+    }
+
+    _drawFooter(doc);
+  },
+});
+
+y = doc.lastAutoTable.finalY + 6;
 
     // Totals
     // Build per-slab GST breakdown from line items
@@ -408,13 +559,40 @@ const PDFGen = (() => {
 
       const numbered = _numberTC(po.notes);
       numbered.split('\n').forEach(line => {
-        if (!line.trim()) { y += 2; return; }
-        const ls = doc.splitTextToSize(line, CW);
-        y = _checkPage(doc, y, ls.length * 4.5);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...C.black);
-        doc.text(ls, M, y);
-        y += ls.length * 4.5;
+
+      if (!line.trim()) {
+      y += 2;
+     return;
+    }
+
+    const match = line.match(/^(\d+\.\s)(.*)$/);
+
+    let bullet = '';
+    let content = line;
+
+    if (match) {
+      bullet = match[1];
+      content = match[2];
+    }
+
+    const wrapped = doc.splitTextToSize(content, CW - 10);
+
+    y = _checkPage(doc, y, wrapped.length * 4.5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...C.black);
+
+  // Draw bullet only once
+    doc.text(bullet, M, y);
+
+  // Draw wrapped content with indentation
+      wrapped.forEach((w, idx) => {
+        doc.text(w, M + 8, y + idx * 4.5);
       });
+
+      y += wrapped.length * 4.5;
+    });
       y += 4;
     }
 

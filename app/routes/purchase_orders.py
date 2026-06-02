@@ -588,7 +588,7 @@ def revise_po(po_id):
     try:
         # Close the original
         original.status = "Closed"
-        original.notes  = (original.notes or "") + f"\n[Revised → {new_id}]"
+
 
         # Create revised copy
         revised = PurchaseOrder(
@@ -606,7 +606,6 @@ def revise_po(po_id):
             po_date       = original.po_date,
             delivery_date = original.delivery_date,
             payment_terms = original.payment_terms,
-            notes         = f"[Revised from {po_id}]\n" + (original.notes or "").replace(f"\n[Revised → {new_id}]", ""),
             status        = "Draft",
             advance_pct   = float(original.advance_pct or 0),
             order_type    = original.order_type,

@@ -35,7 +35,7 @@ const PO = (() => {
       name:        'CUTIS PHARMA',
       affiliation: '',
       addr:        '5/1, 4th Main, MRCR Layout, Vijayanagar, (Near Veeresh Theatre), Bangalore 560040',
-      gstin:       '29AAHFC6018K1Z8',
+      gstin:       '29AAFFC9810R1ZQ',
       tel:         '080 67157222',
       mob:         '',
       email:       'accounts@cutis.org.in',
